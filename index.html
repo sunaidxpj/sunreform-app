@@ -79,7 +79,7 @@ tr:hover td{background:#FAFAFA}
     <span id="prog-txt" style="font-size:12px;color:#757575"></span>
     <button class="btn btn-sm" onclick="loadData()">↻ 同期</button>
     <button class="btn btn-sm" onclick="showTab(&#34;admin&#34;)">全社一覧</button>
-    <button class="btn btn-sm btn-p" onclick="exportCSV()">CSV出力</button>
+    <button class="btn btn-sm btn-p" onclick="checkCSVAuth()">CSV出力</button>
   </div>
 </div>
 <div class="sync-bar" style="margin:12px 20px 0">
@@ -507,6 +507,11 @@ function renderAdm(){
 
 function updateProg(){const done=EMPS.filter(function(e){return saves[e.name]&&saves[e.name].comment;}).length;document.getElementById("prog-txt").textContent="①入力: "+done+"/"+EMPS.length+"名";}
 
+function checkCSVAuth(){
+  const pw=prompt("CSV出力パスワードを入力してください");
+  if(pw==="8386"){exportCSV();}
+  else if(pw!==null){alert("パスワードが違います");}
+}
 function exportCSV(){
   const rows=[["店舗","氏名","社員番号","37期役職","37期等級","達成率","自動提案","①希望変動","①希望役職","①希望等級","①コメント","②暫定変動","②暫定役職","②暫定等級","②メモ","③確定変動","③確定役職","③確定等級","③メモ","新テーブル","旧総額","新年齢給","新役職名","新役職手当","新等級","新等級手当","新総額","差額","備考"]];
   EMPS.forEach(function(emp){
