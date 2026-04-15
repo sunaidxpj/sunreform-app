@@ -395,7 +395,8 @@ function renderInput(){
   emps.forEach(function(emp){
     const au=autoCalc(emp),s=saves[emp.name]||{},st=getStatus(emp.name);
     const ab=emp.achieve==null?"<span class=\"badge bgray\">対象外</span>":emp.achieve>=1?"<span class=\"badge bg\">"+pct(emp.achieve)+"</span>":emp.achieve>=0.9?"<span class=\"badge bb\">"+pct(emp.achieve)+"</span>":emp.achieve>=0.7?"<span class=\"badge ba\">"+pct(emp.achieve)+"</span>":"<span class=\"badge br\">"+pct(emp.achieve)+"</span>";
-    const ac=au.roleChanged?"<span class=\"badge borange\">"+au.delta+"</span>":"<span class=\"badge "+(au.delta.charAt(0)==="+?"bg":au.delta==="保留"?"bb":"br")+"\">" +au.delta+"</span>";
+    const acCls=(au.delta.length>0&&au.delta[0]==="+")?"bg":(au.delta==="保留"?"bb":"br");
+    const ac=au.roleChanged?"<span class=\"badge borange\">"+au.delta+"</span>":"<span class=\"badge "+acCls+"\">"+au.delta+"</span>";
     const ar=au.roleChanged?"<span style=\"font-size:11px;background:#FFF3E0;color:#E65100;padding:2px 5px;border-radius:4px\">★"+au.rank+" "+au.grade+"</span>":"<span style=\"font-size:12px\">"+au.rank+" "+au.grade+"</span>";
     const inp=s.comment?"<span style=\"font-size:11px;color:#757575\">"+(s.hDelta||"")+" "+s.comment.slice(0,14)+"...</span>":"<span style=\"color:#BDBDBD;font-size:12px\">未入力</span>";
     h+="<tr style=\"cursor:pointer\" onclick=\"openM('"+emp.name+"')\"><td style=\"font-weight:700\">"+emp.name+"</td><td>"+emp.rank37+"</td><td>"+emp.grade37+"</td><td>"+ab+"</td><td>"+ac+"</td><td>"+ar+"</td><td style=\"font-size:11px;color:#6A1B9A\">"+(emp.memo||"")+"</td><td>"+inp+"</td><td>"+stBadge(st)+"</td></tr>";
