@@ -123,7 +123,7 @@ tr:hover td{background:#FAFAFA}
     <th style="width:90px">氏名</th><th style="width:75px">店舗</th><th style="width:85px">37期等級</th>
     <th style="width:65px">達成率</th><th style="width:95px">自動提案</th><th style="width:95px">①上長希望</th>
     <th style="width:70px">暫定変動</th><th style="width:85px">暫定役職</th><th style="width:80px">暫定等級</th>
-    <th style="width:130px">会議メモ</th><th style="width:80px">状態</th>
+    <th style="width:130px">会議メモ</th><th style="width:160px">移行プレビュー</th><th style="width:80px">状態</th>
   </tr></thead><tbody id="meet-tb"></tbody></table></div></div>
 </div>
 <div id="v-final" style="display:none">
@@ -139,7 +139,7 @@ tr:hover td{background:#FAFAFA}
     <th style="width:90px">氏名</th><th style="width:75px">店舗</th><th style="width:85px">37期等級</th>
     <th style="width:65px">達成率</th><th style="width:95px">②暫定</th><th style="width:70px">確定変動</th>
     <th style="width:85px">確定役職</th><th style="width:80px">確定等級</th><th style="width:90px">確定後等級</th>
-    <th style="width:130px">役員メモ</th><th style="width:80px">状態</th>
+    <th style="width:130px">役員メモ</th><th style="width:160px">移行プレビュー</th><th style="width:80px">状態</th>
   </tr></thead><tbody id="final-tb"></tbody></table></div></div>
 </div>
 <div id="v-migrate" style="display:none">
@@ -174,7 +174,7 @@ tr:hover td{background:#FAFAFA}
     <div><div style="font-size:17px;font-weight:700" id="m-name"></div><div style="font-size:12px;color:#757575" id="m-sub"></div></div>
     <button class="btn btn-sm" onclick="closeM()">✕ 閉じる</button>
   </div>
-  <div id="m-info"></div><div id="m-auto"></div><div id="m-memo"></div>
+  <div id="m-info"></div><div id="m-auto"></div><div id="m-memo"></div><div id="m-preview"></div>
   <div style="margin-top:14px;border-top:1px solid #F5F5F5;padding-top:14px">
     <div class="field"><label>希望 等級変動</label><select id="mi-delta"></select></div>
     <div class="row">
@@ -426,12 +426,34 @@ function openM(name){
   document.getElementById("m-auto").innerHTML="<div class=\"abox\"><div class=\"al\">達成率基準による自動提案</div><div class=\"av\">"+au.delta+"　→　"+au.rank+" "+au.grade+"</div></div>"+(au.roleChanged?"<div class=\"obox\">★役職変更："+emp.rank37+" → "+au.rank+"</div>":"");
   document.getElementById("m-memo").innerHTML=emp.memo?"<div class=\"mbox\">"+emp.memo+"</div>":"";
   const ds=["保留","+9","+8","+7","+6","+5","+4","+3","+2","+1","0","-1","-2","-3","-4","-5","対象外"];
-  document.getElementById("mi-delta").innerHTML=ds.map(function(d){return "<option"+((s.hDelta||au.delta)===d?" selected":"")+">"+d+"</option>";}).join("");
-  document.getElementById("mi-rank").innerHTML=RANKS_OLD.map(function(r){return "<option"+((s.hRank||au.rank)===r?" selected":"")+">"+r+"</option>";}).join("");
-  document.getElementById("mi-grade").innerHTML=GRADES.map(function(g){return "<option value=\""+g+"号\""+((s.hGrade||au.grade)===g+"号"?" selected":"")+">"+ g+"号</option>";}).join("");
+  document.getElementById("mi-delta").innerHTML=ds.map(function(d){return "<option"+((s.hDelta||au.delta)===d?" selected":"")+">"+d+"</option>";}).join("");  document.getElementById("mi-delta").onchange=updatePreview;
+  document.getElementById("mi-rank").innerHTML=RANKS_OLD.map(function(r){return "<option"+((s.hRank||au.rank)===r?" selected":"")+">"+r+"</option>";}).join("");  document.getElementById("mi-rank").onchange=updatePreview;
+  document.getElementById("mi-grade").innerHTML=GRADES.map(function(g){return "<option value=\""+g+"号\""+((s.hGrade||au.grade)===g+"号"?" selected":"")+">"+ g+"号</option>";}).join("");  document.getElementById("mi-grade").onchange=updatePreview;
   document.getElementById("mi-comment").value=s.comment||"";
   document.getElementById("m-smsg").style.display="none";
   document.getElementById("modal-area").style.display="block";
+  updatePreview();
+}
+
+function updatePreview(){
+  var emp=EMPS.find(function(e){return e.name===curEmp;});
+  if(!emp||emp.base_pay===0)return;
+  var rank=document.getElementById("mi-rank").value;
+  var grade=document.getElementById("mi-grade").value;
+  var delta=document.getElementById("mi-delta").value;
+  if(!rank||!grade){document.getElementById("m-preview").innerHTML="";return;}
+  // 旧テーブルの確定等級で新テーブル移行計算
+  var m=calcMig(emp,rank,grade);
+  if(!m||!m.nt){document.getElementById("m-preview").innerHTML="";return;}
+  var preview="";
+  var dc=m.diff===0?"bb":m.diff>0?"bg":"br";
+  var ntStr=m.nextTarget>0?'<div style="margin-top:6px;font-size:13px;font-weight:700;color:#E65100">来期利益設定（参考）：'+yen(m.nextTarget)+'</div>':""; 
+  preview='<div style="background:#E3F2FD;border:1px solid #90CAF9;border-radius:6px;padding:10px 14px;margin:8px 0">'+
+    '<div style="font-size:11px;color:#1565C0;margin-bottom:4px">7月移行後のイメージ（参考）</div>'+
+    '<div style="font-size:13px;color:#0D47A1;font-weight:700">'+m.tbl+' '+m.ng+' &nbsp; 新総額：'+yen(m.nt)+' <span class="badge '+dc+'">'+( m.diff>=0?"+":"")+yen(m.diff)+"</span></div>"+
+    ntStr+
+    "</div>";
+  document.getElementById("m-preview").innerHTML=preview;
 }
 
 async function saveM(){
@@ -460,9 +482,9 @@ function renderMeet(){
   if(ff==="役職変更")emps=emps.filter(function(e){return autoCalc(e).roleChanged;});
   document.getElementById("meet-tb").innerHTML=emps.map(function(emp){
     const au=autoCalc(emp),s=saves[emp.name]||{},hs=s.hDelta?s.hDelta+"→"+s.hRank+" "+s.hGrade:"—";
-    const rOpts=RANKS_OLD.map(function(r){return "<option"+(s.mRank===r?" selected":"")+">"+r+"</option>";}).join("");
-    const gOpts=GRADES.map(function(g){return "<option value=\""+g+"号\""+( s.mGrade===g+"号"?" selected":"")+">"+ g+"号</option>";}).join("");
-    return "<tr><td style=\"font-weight:700\">"+emp.name+"</td><td style=\"font-size:11px\">"+emp.store+"</td><td style=\"font-size:11px\">"+emp.rank37+" "+emp.grade37+"</td><td>"+pct(emp.achieve)+"</td><td style=\"font-size:11px\">"+au.delta+" "+au.rank+" "+au.grade+(au.roleChanged?" <span class=\"badge borange\">★</span>":"")+"</td><td style=\"font-size:11px\">"+hs+"</td><td><input type=\"text\" value=\""+(s.mDelta||"")+"\" onchange=\"svK('"+emp.emp_no+"','"+emp.name+"','mDelta','meet_delta',this.value)\" style=\"width:52px;font-size:12px;padding:3px 6px\"></td><td><select onchange=\"svK('"+emp.emp_no+"','"+emp.name+"','mRank','meet_rank',this.value)\" style=\"font-size:11px;padding:3px\">"+rOpts+"</select></td><td><select onchange=\"svK('"+emp.emp_no+"','"+emp.name+"','mGrade','meet_grade',this.value)\" style=\"font-size:11px;padding:3px\">"+gOpts+"</select></td><td><input type=\"text\" value=\""+(s.mMemo||"")+"\" onchange=\"svK('"+emp.emp_no+"','"+emp.name+"','mMemo','meet_memo',this.value)\" style=\"font-size:11px;padding:3px\" placeholder=\"メモ\"></td><td>"+stBadge(getStatus(emp.name))+"</td></tr>";
+    const rOpts="<option value=\"\">--</option>"+RANKS_OLD.map(function(r){var mDef=s.mRank||s.hRank||"";return "<option"+(mDef===r?" selected":"")+">"+r+"</option>";}).join("");
+    const gOpts="<option value=\"\">--</option>"+GRADES.map(function(g){return "<option value=\""+g+"号\""+(( s.mGrade||s.hGrade||"")===g+"号"?" selected":"")+">"+ g+"号</option>";}).join("");
+    return "<tr><td style=\"font-weight:700\">"+emp.name+"</td><td style=\"font-size:11px\">"+emp.store+"</td><td style=\"font-size:11px\">"+emp.rank37+" "+emp.grade37+"</td><td>"+pct(emp.achieve)+"</td><td style=\"font-size:11px\">"+au.delta+" "+au.rank+" "+au.grade+(au.roleChanged?" <span class=\"badge borange\">★</span>":"")+"</td><td style=\"font-size:11px\">"+hs+"</td><td><input type=\"text\" value=\""+(s.mDelta||s.hDelta||"")+"\" onchange=\"svK('"+emp.emp_no+"','"+emp.name+"','mDelta','meet_delta',this.value)\" style=\"width:52px;font-size:12px;padding:3px 6px\"></td><td><select onchange=\"svK('"+emp.emp_no+"','"+emp.name+"','mRank','meet_rank',this.value);var pr=this.closest('tr').querySelector('.meet-preview');if(pr)pr.innerHTML=calcPreview('"+emp.name+"',this.value,this.closest('tr').querySelector('.meet-grade-sel').value)\" style=\"font-size:11px;padding:3px\" class=\"meet-rank-sel\">"+rOpts+"</select></td><td><select onchange=\"svK('"+emp.emp_no+"','"+emp.name+"','mGrade','meet_grade',this.value);var pr=this.closest('tr').querySelector('.meet-preview');if(pr)pr.innerHTML=calcPreview('"+emp.name+"',this.closest('tr').querySelector('.meet-rank-sel').value,this.value)\" style=\"font-size:11px;padding:3px\" class=\"meet-grade-sel\">"+gOpts+"</select></td><td><input type=\"text\" value=\""+(s.mMemo||"")+"\" onchange=\"svK('"+emp.emp_no+"','"+emp.name+"','mMemo','meet_memo',this.value)\" style=\"font-size:11px;padding:3px\" placeholder=\"メモ\"></td><td>"+stBadge(getStatus(emp.name))+"</td></tr>";
   }).join("");
 }
 
@@ -472,12 +494,22 @@ function renderFinal(){
   document.getElementById("final-tb").innerHTML=emps.map(function(emp){
     const s=saves[emp.name]||{},ms=s.mDelta?s.mDelta+"→"+(s.mRank||"")+" "+(s.mGrade||""):"—";
     const fR=s.fRank||"",fG=s.fGrade||"",conf=fR&&fG?fR+" "+fG:s.mRank&&s.mGrade?s.mRank+" "+s.mGrade:"";
-    const rOpts=RANKS_OLD.map(function(r){return "<option"+(fR===r?" selected":"")+">"+r+"</option>";}).join("");
-    const gOpts=GRADES.map(function(g){return "<option value=\""+g+"号\""+( fG===g+"号"?" selected":"")+">"+ g+"号</option>";}).join("");
-    return "<tr><td style=\"font-weight:700\">"+emp.name+"</td><td style=\"font-size:11px\">"+emp.store+"</td><td style=\"font-size:11px\">"+emp.rank37+" "+emp.grade37+"</td><td>"+pct(emp.achieve)+"</td><td style=\"font-size:11px\">"+ms+"</td><td><input type=\"text\" value=\""+(s.fDelta||"")+"\" onchange=\"svK('"+emp.emp_no+"','"+emp.name+"','fDelta','final_delta',this.value)\" style=\"width:52px;font-size:12px;padding:3px 6px\"></td><td><select onchange=\"svK('"+emp.emp_no+"','"+emp.name+"','fRank','final_rank',this.value)\" style=\"font-size:11px;padding:3px\">"+rOpts+"</select></td><td><select onchange=\"svK('"+emp.emp_no+"','"+emp.name+"','fGrade','final_grade',this.value)\" style=\"font-size:11px;padding:3px\">"+gOpts+"</select></td><td style=\"font-weight:700;color:#1D9E75;font-size:12px\">"+conf+"</td><td><input type=\"text\" value=\""+(s.fMemo||"")+"\" onchange=\"svK('"+emp.emp_no+"','"+emp.name+"','fMemo','final_memo',this.value)\" style=\"font-size:11px;padding:3px\" placeholder=\"メモ\"></td><td>"+stBadge(getStatus(emp.name))+"</td></tr>";
+    const rOpts="<option value=\"\">--</option>"+RANKS_OLD.map(function(r){var fRDef=fR||s.mRank||"";return "<option"+(fRDef===r?" selected":"")+">"+r+"</option>";}).join("");
+    const gOpts="<option value=\"\">--</option>"+GRADES.map(function(g){return "<option value=\""+g+"号\""+(( fG||s.mGrade||"")===g+"号"?" selected":"")+">"+ g+"号</option>";}).join("");
+    return "<tr><td style=\"font-weight:700\">"+emp.name+"</td><td style=\"font-size:11px\">"+emp.store+"</td><td style=\"font-size:11px\">"+emp.rank37+" "+emp.grade37+"</td><td>"+pct(emp.achieve)+"</td><td style=\"font-size:11px\">"+ms+"</td><td><input type=\"text\" value=\""+(s.fDelta||s.mDelta||"")+"\" onchange=\"svK('"+emp.emp_no+"','"+emp.name+"','fDelta','final_delta',this.value)\" style=\"width:52px;font-size:12px;padding:3px 6px\"></td><td><select onchange=\"svK('"+emp.emp_no+"','"+emp.name+"','fRank','final_rank',this.value);var pr=this.closest('tr').querySelector('.final-preview');if(pr)pr.innerHTML=calcPreview('"+emp.name+"',this.value,this.closest('tr').querySelector('.final-grade-sel').value)\" style=\"font-size:11px;padding:3px\" class=\"final-rank-sel\">"+rOpts+"</select></td><td><select onchange=\"svK('"+emp.emp_no+"','"+emp.name+"','fGrade','final_grade',this.value);var pr=this.closest('tr').querySelector('.final-preview');if(pr)pr.innerHTML=calcPreview('"+emp.name+"',this.closest('tr').querySelector('.final-rank-sel').value,this.value)\" style=\"font-size:11px;padding:3px\" class=\"final-grade-sel\">"+gOpts+"</select></td><td style=\"font-weight:700;color:#1D9E75;font-size:12px\">"+conf+"</td><td><input type=\"text\" value=\""+(s.fMemo||"")+"\" onchange=\"svK('"+emp.emp_no+"','"+emp.name+"','fMemo','final_memo',this.value)\" style=\"font-size:11px;padding:3px\" placeholder=\"メモ\"></td><td>"+stBadge(getStatus(emp.name))+"</td></tr>";
   }).join("");
 }
 
+function calcPreview(empName, rank, grade){
+  if(!rank||!grade||rank==""||grade=="")return "";
+  var emp=EMPS.find(function(e){return e.name===empName;});
+  if(!emp||emp.base_pay===0)return "";
+  var m=calcMig(emp,rank,grade);
+  if(!m||!m.nt)return "";
+  var dc=m.diff===0?"bb":m.diff>0?"bg":"br";
+  var ntStr=m.nextTarget>0?" / <span style=\"color:#E65100;font-weight:700\">来期設定:"+yen(m.nextTarget)+"</span>":"";
+  return "<div style=\"font-size:11px;color:#0D47A1;margin-top:2px\">→"+m.tbl+" "+m.ng+" 新総額:"+yen(m.nt)+" <span class=\"badge "+dc+"\">"+( m.diff>=0?"+":"")+yen(m.diff)+"</span>"+ntStr+"</div>";
+}
 const saveTimer={};
 async function svK(empNo,name,lk,kk,val){
   if(!saves[name])saves[name]={};saves[name][lk]=val;
