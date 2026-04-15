@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>38期 昇降格査定システム</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;font-size:14px;background:#F5F5F5;color:#212121}
+.topbar{background:#fff;border-bottom:1px solid #E0E0E0;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;position:sticky;top:0;z-index:100;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.tt{font-size:15px;font-weight:700;color:#212121}
+.ts{font-size:11px;color:#757575;margin-top:1px}
+.tabs{display:flex;border-bottom:1px solid #E0E0E0;background:#fff;padding:0 20px;overflow-x:auto}
+.tab{padding:10px 16px;font-size:13px;cursor:pointer;color:#757575;border-bottom:2px solid transparent;white-space:nowrap;font-weight:500}
+.tab:hover{color:#212121}
+.tab.on{color:#1D9E75;border-bottom-color:#1D9E75;font-weight:700}
+.tab.locked{color:#BDBDBD}
+.tab.unlocked{color:#1565C0}
+.tab.unlocked.on{color:#1565C0;border-bottom-color:#1565C0}
+.content{padding:16px 20px;max-width:1400px;margin:0 auto}
+.card{background:#fff;border:1px solid #E0E0E0;border-radius:8px;padding:14px 18px;margin-bottom:12px}
+.ct{font-size:13px;font-weight:700;margin-bottom:10px}
+select,input,textarea{width:100%;padding:7px 10px;font-size:13px;border:1px solid #E0E0E0;border-radius:6px;background:#fff;color:#212121;outline:none}
+select:focus,input:focus,textarea:focus{border-color:#1D9E75}
+textarea{resize:vertical;min-height:56px}
+.field{margin-bottom:10px}
+label{font-size:12px;color:#757575;display:block;margin-bottom:3px}
+.row{display:flex;gap:10px}.row .field{flex:1}
+.btn{padding:7px 16px;font-size:13px;border:1px solid #E0E0E0;border-radius:6px;background:#fff;color:#212121;cursor:pointer;font-weight:500}
+.btn:hover{background:#F5F5F5}
+.btn-p{background:#1D9E75;border-color:#1D9E75;color:#fff}
+.btn-p:hover{background:#0F6E56}
+.btn-blue{background:#1565C0;border-color:#1565C0;color:#fff}
+.btn-blue:hover{background:#0D47A1}
+.btn-sm{padding:4px 12px;font-size:12px}
+.btn-red{color:#E53935;border-color:#E53935}
+.badge{display:inline-block;font-size:11px;padding:2px 7px;border-radius:4px;font-weight:500}
+.bg{background:#E8F5E9;color:#2E7D32}.ba{background:#FFF8E1;color:#F57F17}
+.br{background:#FFEBEE;color:#C62828}.bb{background:#E3F2FD;color:#1565C0}
+.bgray{background:#F5F5F5;color:#757575}.borange{background:#FFF3E0;color:#E65100}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{background:#FAFAFA;text-align:left;padding:8px 10px;font-weight:700;font-size:11px;color:#757575;border-bottom:1px solid #E0E0E0;white-space:nowrap}
+td{padding:8px 10px;border-bottom:1px solid #F5F5F5;vertical-align:middle;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+tr:hover td{background:#FAFAFA}
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+.metric{background:#fff;border:1px solid #E0E0E0;border-radius:8px;padding:12px 16px}
+.mlb{font-size:11px;color:#757575;margin-bottom:4px}
+.mvl{font-size:22px;font-weight:700;color:#212121}
+.overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px}
+.mcard{background:#fff;border-radius:12px;width:100%;max-width:520px;padding:20px;max-height:90vh;overflow-y:auto}
+.ir{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #F5F5F5;font-size:13px}
+.ir:last-child{border:none}
+.ik{color:#757575}.iv{font-weight:700}
+.abox{background:#E8F5E9;border:1px solid #A5D6A7;border-radius:6px;padding:10px 14px;margin:10px 0}
+.abox .al{font-size:11px;color:#388E3C;margin-bottom:3px}
+.abox .av{font-size:15px;font-weight:700;color:#1B5E20}
+.mbox{background:#F3E5F5;border:1px solid #CE93D8;border-radius:6px;padding:8px 12px;margin:8px 0;font-size:12px;color:#6A1B9A}
+.obox{background:#FFF3E0;border:1px solid #FFCC80;border-radius:6px;padding:8px 12px;margin:6px 0;font-size:12px;color:#E65100}
+.ph1{background:#E8F5E9;color:#2E7D32;font-size:10px;padding:2px 8px;border-radius:10px;font-weight:700;display:inline-block}
+.ph2{background:#FFF9C4;color:#F57F17;font-size:10px;padding:2px 8px;border-radius:10px;font-weight:700;display:inline-block}
+.ph3{background:#E3F2FD;color:#1565C0;font-size:10px;padding:2px 8px;border-radius:10px;font-weight:700;display:inline-block}
+.sync-bar{background:#fff;border:1px solid #E0E0E0;border-radius:8px;padding:8px 16px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;font-size:12px}
+.dot{width:8px;height:8px;border-radius:50%;background:#BDBDBD;display:inline-block;margin-right:6px;flex-shrink:0}
+.dot.ok{background:#1D9E75}.dot.err{background:#E53935}
+.dot.loading{background:#FB8C00;animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.fr{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.fr select{width:auto;min-width:120px}
+.smsg{color:#1D9E75;font-size:12px;margin-top:6px;display:none}
+.prog-bar-wrap{height:5px;background:#E0E0E0;border-radius:3px;margin-top:4px;overflow:hidden}
+.prog-bar-fill{height:100%;background:#1D9E75;border-radius:3px;transition:width .3s}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div>
+    <div class="tt">38期 昇降格査定システム</div>
+    <div class="ts">キントーン連携 ／ マネージャー除く 68名</div>
+  </div>
+  <div style="display:flex;gap:6px;align-items:center">
+    <span id="prog-txt" style="font-size:12px;color:#757575"></span>
+    <button class="btn btn-sm" onclick="loadData()">↻ 同期</button>
+    <button class="btn btn-sm" onclick="showTab('admin')">全社一覧</button>
+    <button class="btn btn-sm btn-p" onclick="exportCSV()">CSV出力</button>
+  </div>
+</div>
+
+<div class="sync-bar" style="margin:12px 20px 0">
+  <div style="display:flex;align-items:center">
+    <span class="dot loading" id="sync-dot"></span>
+    <span id="sync-msg">キントーンに接続中...</span>
+  </div>
+  <span id="sync-time" style="color:#BDBDBD"></span>
+</div>
+
+<div class="tabs" style="margin-top:8px">
+  <div class="tab on" id="tab-input" onclick="showTab('input')">①上長入力</div>
+  <div class="tab" id="tab-meet" onclick="showTab('meet')">②会議（暫定）</div>
+  <div class="tab locked" id="tab-final" onclick="tryUnlock()">🔒 ③役員会（確定）</div>
+  <div class="tab" id="tab-migrate" onclick="showTab('migrate')">7月移行計算</div>
+  <div class="tab" id="tab-admin" onclick="showTab('admin')">全社一覧</div>
+</div>
+
+<div class="content">
+
+<div id="v-input">
+  <div class="card">
+    <div class="ct">店舗を選択</div>
+    <div class="row">
+      <div class="field" style="flex:2"><label>店舗</label>
+        <select id="sel-store" onchange="renderInput()"><option value="">-- 選択してください --</option></select>
+      </div>
+      <div class="field" style="flex:1"><label>入力進捗</label>
+        <div id="prog-store" style="font-size:13px;padding-top:4px;color:#757575">—</div>
+        <div class="prog-bar-wrap"><div class="prog-bar-fill" id="prog-bar" style="width:0%"></div></div>
+      </div>
+    </div>
+  </div>
+  <div id="input-list"></div>
+</div>
+
+<div id="v-meet" style="display:none">
+  <div class="card">
+    <div class="ct">②会議用 — 暫定等級を入力</div>
+    <div class="fr">
+      <select id="meet-sf" onchange="renderMeet()"><option value="">全店舗</option></select>
+      <select id="meet-ff" onchange="renderMeet()">
+        <option value="">全員</option><option value="入力済">①入力済のみ</option><option value="役職変更">役職変更あり</option>
+      </select>
+    </div>
+  </div>
+  <div class="card" style="padding:0"><div class="tw">
+    <table><thead><tr>
+      <th style="width:90px">氏名</th><th style="width:75px">店舗</th><th style="width:85px">37期等級</th>
+      <th style="width:65px">達成率</th><th style="width:95px">自動提案</th><th style="width:95px">①上長希望</th>
+      <th style="width:70px">暫定変動</th><th style="width:85px">暫定役職</th><th style="width:80px">暫定等級</th>
+      <th style="width:130px">会議メモ</th><th style="width:80px">状態</th>
+    </tr></thead><tbody id="meet-tb"></tbody></table>
+  </div></div>
+</div>
+
+<div id="v-final" style="display:none">
+  <div class="card" style="border-color:#90CAF9">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <div class="ct" style="color:#1565C0;margin-bottom:2px">🔓 ③役員会 — 最終確定（管理者モード）</div>
+        <div style="font-size:12px;color:#757575">このタブへの入力は役員のみ</div>
+      </div>
+      <button class="btn btn-sm btn-red" onclick="lockFinal()">ロックする</button>
+    </div>
+  </div>
+  <div class="card"><div class="fr"><select id="final-sf" onchange="renderFinal()"><option value="">全店舗</option></select></div></div>
+  <div class="card" style="padding:0"><div class="tw">
+    <table><thead><tr>
+      <th style="width:90px">氏名</th><th style="width:75px">店舗</th><th style="width:85px">37期等級</th>
+      <th style="width:65px">達成率</th><th style="width:95px">②暫定</th><th style="width:70px">確定変動</th>
+      <th style="width:85px">確定役職</th><th style="width:80px">確定等級</th><th style="width:90px">確定後等級</th>
+      <th style="width:130px">役員メモ</th><th style="width:80px">状態</th>
+    </tr></thead><tbody id="final-tb"></tbody></table>
+  </div></div>
+</div>
+
+<div id="v-migrate" style="display:none">
+  <div class="card">
+    <div class="ct">7月新テーブル移行計算</div>
+    <div style="font-size:12px;color:#757575;margin-bottom:10px">旧総額（年齢給＋役職等級手当＋LP¥45,000）を維持したまま新テーブルの等級を逆算。減給者ゼロ。</div>
+    <div class="fr">
+      <select id="mig-sf" onchange="renderMigrate()"><option value="">全店舗</option></select>
+      <select id="mig-ff" onchange="renderMigrate()"><option value="">全員</option><option value="確定済">③確定済のみ</option></select>
+    </div>
+  </div>
+  <div class="card" style="padding:0"><div class="tw">
+    <table><thead><tr>
+      <th style="width:90px">氏名</th><th style="width:70px">店舗</th><th style="width:80px">37期等級</th>
+      <th style="width:80px">③確定等級</th><th style="width:75px">新テーブル</th><th style="width:85px">旧総額</th>
+      <th style="width:85px">新年齢給</th><th style="width:90px">新役職</th><th style="width:85px">新役職手当</th>
+      <th style="width:75px">新等級</th><th style="width:85px">新等級手当</th><th style="width:85px">新総額</th><th style="width:70px">差額</th>
+    </tr></thead><tbody id="mig-tb"></tbody></table>
+  </div></div>
+</div>
+
+<div id="v-admin" style="display:none">
+  <div class="metrics" id="adm-metrics"></div>
+  <div class="card" style="padding:0"><div class="tw">
+    <table><thead><tr>
+      <th style="width:90px">氏名</th><th style="width:70px">店舗</th><th style="width:75px">37期役職</th>
+      <th style="width:75px">37期等級</th><th style="width:65px">達成率</th><th style="width:80px">自動提案</th>
+      <th style="width:80px">①希望</th><th style="width:80px">②暫定</th><th style="width:80px">③確定役職</th>
+      <th style="width:80px">③確定等級</th><th style="width:90px">新テーブル等級</th><th style="width:75px">状態</th>
+    </tr></thead><tbody id="adm-tb"></tbody></table>
+  </div></div>
+</div>
+</div>
+
+<!-- 上長入力モーダル -->
+<div id="modal-area" style="display:none">
+<div class="overlay" onclick="if(event.target===this)closeM()">
+<div class="mcard">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+    <div>
+      <div style="font-size:17px;font-weight:700" id="m-name"></div>
+      <div style="font-size:12px;color:#757575" id="m-sub"></div>
+    </div>
+    <button class="btn btn-sm" onclick="closeM()">✕ 閉じる</button>
+  </div>
+  <div id="m-info"></div><div id="m-auto"></div><div id="m-memo"></div>
+  <div style="margin-top:14px;border-top:1px solid #F5F5F5;padding-top:14px">
+    <div class="field"><label>希望 等級変動</label><select id="mi-delta"></select></div>
+    <div class="row">
+      <div class="field"><label>希望 役職</label><select id="mi-rank"></select></div>
+      <div class="field"><label>希望 等級</label><select id="mi-grade"></select></div>
+    </div>
+    <div class="field"><label>上長コメント・理由 <span style="color:#E53935">*必須</span></label>
+      <textarea id="mi-comment" placeholder="達成率・行動評価・来期への期待など具体的に記入"></textarea>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="btn btn-p" id="save-btn" onclick="saveM()">保存してキントーンに送信</button>
+      <button class="btn" onclick="closeM()">キャンセル</button>
+      <span class="smsg" id="m-smsg">✓ キントーンに保存しました</span>
+    </div>
+  </div>
+</div></div></div>
+
+<!-- パスワードモーダル -->
+<div id="pw-modal" style="display:none">
+<div class="overlay" onclick="if(event.target===this)closePW()">
+<div class="mcard" style="max-width:340px;text-align:center;padding:36px">
+  <div style="font-size:52px;margin-bottom:16px">🔒</div>
+  <div style="font-size:18px;font-weight:700;margin-bottom:6px">③役員会タブ</div>
+  <div style="font-size:13px;color:#757575;margin-bottom:24px">パスワードを入力してください</div>
+  <input type="password" id="pw-input" style="text-align:center;font-size:22px;letter-spacing:8px;padding:12px;margin-bottom:12px" placeholder="----" maxlength="10" onkeydown="if(event.key==='Enter')checkPW()">
+  <button class="btn btn-blue" style="width:100%;padding:10px" onclick="checkPW()">解錠する</button>
+  <div style="color:#E53935;font-size:12px;margin-top:8px;min-height:18px" id="pw-err"></div>
+  <button class="btn" style="width:100%;margin-top:10px;font-size:12px" onclick="closePW()">キャンセル</button>
+</div></div></div>
+
+<script>
+const GAS_URL =  + GAS_URL + ;
+
+// GAS経由でキントーンAPIを呼ぶ
+async function gasGet(query) {
+  const url = `${GAS_URL}?query=${encodeURIComponent(query)}`;
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`GAS GET error: ${r.status}`);
+  return r.json();
+}
+async function gasPost(endpoint, method, payload) {
+  const r = await fetch(GAS_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify({ endpoint, method, payload })
+  });
+  if (!r.ok) throw new Error(`GAS POST error: ${r.status}`);
+  return r.json();
+}
+
+async function upsert(empNo, fields) {
+  // レコード検索
+  const q = await gasGet(`query=emp_no%3D%22${empNo}%22`);
+  if (q.records && q.records.length > 0) {
+    const id = q.records[0]['$id'].value;
+    await gasPost('record.json', 'PUT', { app: '329', id, record: fields });
+  } else {
+    fields.emp_no = { value: empNo };
+    await gasPost('record.json', 'POST', { app: '329', record: fields });
+  }
+}
+
+async function loadData() {
+  setSyncStatus('loading', 'キントーンから取得中...');
+  try {
+    const data = await gasGet('totalCount=true&query=order+by+emp_no+asc&fields[0]=emp_no&fields[1]=hope_delta&fields[2]=hope_rank&fields[3]=hope_grade&fields[4]=comment&fields[5]=meet_delta&fields[6]=meet_rank&fields[7]=meet_grade&fields[8]=meet_memo&fields[9]=final_delta&fields[10]=final_rank&fields[11]=final_grade&fields[12]=final_memo');
+    data.records.forEach(rec => {
+      const empNo = rec.emp_no?.value || '';
+      const emp = EMPS.find(e => e.emp_no === empNo);
+      if (!emp) return;
+      const n = emp.name;
+      if (!saves[n]) saves[n] = {};
+      const fv = k => rec[k]?.value || '';
+      if (fv('comment'))     saves[n].comment = fv('comment');
+      if (fv('hope_delta'))  saves[n].hDelta  = fv('hope_delta');
+      if (fv('hope_rank'))   saves[n].hRank   = fv('hope_rank');
+      if (fv('hope_grade'))  saves[n].hGrade  = fv('hope_grade');
+      if (fv('meet_delta'))  saves[n].mDelta  = fv('meet_delta');
+      if (fv('meet_rank'))   saves[n].mRank   = fv('meet_rank');
+      if (fv('meet_grade'))  saves[n].mGrade  = fv('meet_grade');
+      if (fv('meet_memo'))   saves[n].mMemo   = fv('meet_memo');
+      if (fv('final_delta')) saves[n].fDelta  = fv('final_delta');
+      if (fv('final_rank'))  saves[n].fRank   = fv('final_rank');
+      if (fv('final_grade')) saves[n].fGrade  = fv('final_grade');
+      if (fv('final_memo'))  saves[n].fMemo   = fv('final_memo');
+    });
+    setSyncStatus('ok', `同期完了（${data.records.length}件）`);
+    const now = new Date();
+    document.getElementById('sync-time').textContent = `最終同期: ${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`;
+    renderInput(); updateProg();
+  } catch(e) { setSyncStatus('err', '接続エラー: ' + e.message); }
+}
+function setSyncStatus(t, msg) {
+  const d = document.getElementById('sync-dot');
+  d.className = 'dot ' + (t==='ok'?'ok':t==='err'?'err':'loading');
+  document.getElementById('sync-msg').textContent = msg;
+}
+
+// ── 等級ラダー ──
+const RANKS_OLD = ['次長','課長','係長','主任','1級職','2級職','3級職'];
+const GRADES = ['A-1','A-2','A-3','B-1','B-2','B-3','C-1','C-2','C-3'];
+const LADDER = [];
+for(let ri=RANKS_OLD.length-1;ri>=0;ri--)for(let gi=GRADES.length-1;gi>=0;gi--)LADDER.push({r:RANKS_OLD[ri],g:GRADES[gi]});
+const LI={};LADDER.forEach((l,i)=>LI[l.r+'|'+l.g]=i);
+function lIdx(r,g){return LI[r+'|'+g.replace('号','')] ?? -1;}
+function lAt(i){return LADDER[Math.max(0,Math.min(LADDER.length-1,i))];}
+function aToDelta(a){
+  if(a==null)return null;const p=a*100;
+  if(p>=140)return 9;if(p>=135)return 8;if(p>=130)return 7;if(p>=125)return 6;
+  if(p>=120)return 5;if(p>=115)return 4;if(p>=110)return 3;if(p>=105)return 2;
+  if(p>=100)return 1;if(p>=95)return 0;if(p>=90)return -1;if(p>=85)return -2;
+  if(p>=80)return -3;if(p>=75)return -4;return -5;
+}
+function dStr(d){if(d==null)return '保留';if(d===0)return '保留';return d>0?`+${d}`:`${d}`;}
+function autoCalc(emp){
+  const d=aToDelta(emp.achieve);
+  if(d==null)return{delta:'保留',rank:emp.rank37,grade:emp.grade37.includes('号')?emp.grade37:emp.grade37+'号',roleChanged:false};
+  const idx=lIdx(emp.rank37,emp.grade37);
+  if(idx<0)return{delta:dStr(d),rank:emp.rank37,grade:emp.grade37,roleChanged:false};
+  const nl=lAt(idx+d);
+  return{delta:dStr(d),rank:nl.r,grade:nl.g+'号',roleChanged:nl.r!==emp.rank37};
+}
+
+// ── 移行計算 ──
+const RANK_MAP={'次長':'チームリーダー','課長':'チームリーダー','係長':'サブリーダー','主任':'サブリーダー','主任（係長）':'サブリーダー','1級職':'１級メンバー','2級職':'２級メンバー','3級職':'３級メンバー','サブリーダー':'サブリーダー','チームリーダー':'チームリーダー','１級メンバー':'１級メンバー','２級メンバー':'２級メンバー','３級メンバー':'３級メンバー'};
+const RANK_PAY={'グループリーダー':70000,'チームリーダー':50000,'サブリーダー':30000,'１級メンバー':15000,'２級メンバー':10000,'３級メンバー':5000};
+const TBL_MAP={'②営業':'①営業','③施工管理':'①営業','⑤SSC':'①営業','④設計':'②設計','⑥サポート':'③サポート','⑦サポート':'③サポート','設計職':'②設計'};
+function getNewTbl(old){for(const[k,v]of Object.entries(TBL_MAP)){if(old.includes(k))return v;}return '①営業';}
+const A1={18:55000,19:58500,20:62000,21:65500,22:69000,23:72500,24:76000,25:80000,26:84000,27:88000,28:92000,29:96000,30:100000,31:104000,32:108000,33:112000,34:116000,35:120000,36:123500,37:127000,38:130500,39:134000,40:137500,41:140500,42:143500,43:146500,44:149500,45:152500,46:155000,47:157500,48:160000,49:162500,50:165000,51:167500,52:170000,53:172500,54:175000,55:177500,56:180000,57:182500,58:182500,59:182500,60:182500};
+const A2={18:50000,19:53000,20:56500,21:59500,22:62500,23:66000,24:69000,25:72500,26:76500,27:80000,28:83500,29:87500,30:91000,31:94500,32:98000,33:102000,34:105500,35:109000,36:112500,37:115500,38:118500,39:122000,40:125000,41:127500,42:130500,43:133000,44:136000,45:138500,46:141000,47:143500,48:145500,49:147500,50:150000,51:152000,52:154500,53:156500,54:159000,55:161000,56:163500,57:165500,58:165500,59:165500,60:165500};
+const A3={18:45000,19:48000,20:50500,21:53500,22:56500,23:59500,24:62000,25:65500,26:68500,27:72000,28:75500,29:78500,30:82000,31:85000,32:88500,33:91500,34:95000,35:98000,36:101000,37:104000,38:107000,39:109500,40:112500,41:115000,42:117500,43:120000,44:122500,45:125000,46:127500,47:129500,48:131500,49:133500,50:135000,51:137000,52:139000,53:141000,54:143000,55:145000,56:146500,57:148000,58:148000,59:148000,60:148000};
+function getAP(age,tbl){age=Math.min(age,60);return(tbl==='①営業'?A1:tbl==='②設計'?A2:A3)[age]||0;}
+const GP2_1={G:105000,F:122000,E:139000,D:155000,C:172000,B:189000,A:206000,S:223000};
+const GP3_1={G:96000,F:111000,E:127000,D:142000,C:158000,B:173000,A:189000,S:204000};
+const GP1={},GP2={},GP3={};
+['G','F','E','D','C','B','A','S'].forEach((r,ri)=>{
+  const b=[124000,144000,164000,184000,204000,224000,244000,264000][ri];
+  for(let n=1;n<=10;n++){GP1[`${r}-${n}`]=b-(n-1)*2000;GP2[`${r}-${n}`]=GP2_1[r]-(n-1)*2000;GP3[`${r}-${n}`]=GP3_1[r]-(n-1)*2000;}
+});
+function findGrade(tv,tbl){
+  const gp=tbl==='①営業'?GP1:tbl==='②設計'?GP2:GP3,ro=['G','F','E','D','C','B','A','S'];
+  let best=null;
+  for(const[k,v]of Object.entries(gp)){if(v>=tv){if(!best||v<best.v||(v===best.v&&ro.indexOf(k[0])>ro.indexOf(best.k[0]))){best={k,v};}}}
+  if(!best){let mx=0,mk='S-1';for(const[k,v]of Object.entries(gp)){if(v>mx){mx=v;mk=k;}}return{grade:mk+'号',pay:mx};}
+  return{grade:best.k+'号',pay:best.v};
+}
+function calcMig(emp,cR,cG){
+  const rank=cR||emp.rank37,tbl=getNewTbl(emp.table37),ot=emp.base_pay+emp.rank_pay+45000;
+  const na=getAP(emp.age,tbl),rn=RANK_MAP[rank]||'２級メンバー',rp=RANK_PAY[rn]||10000;
+  const{grade:ng,pay:ngp}=findGrade(ot-na-rp-45000,tbl);
+  const nt=na+rp+ngp+45000;
+  return{tbl,rn,rp,ot,na,ng,ngp,nt,diff:nt-ot};
+}
+
+// ── パスワード ──
+const PW='8386';
+let finalUnlocked=false;
+function tryUnlock(){
+  if(finalUnlocked){showTab('final');return;}
+  document.getElementById('pw-input').value='';
+  document.getElementById('pw-err').textContent='';
+  document.getElementById('pw-modal').style.display='block';
+  setTimeout(()=>document.getElementById('pw-input').focus(),50);
+}
+function checkPW(){
+  if(document.getElementById('pw-input').value===PW){
+    finalUnlocked=true;
+    document.getElementById('pw-modal').style.display='none';
+    const t=document.getElementById('tab-final');
+    t.classList.remove('locked');t.classList.add('unlocked');
+    t.textContent='🔓 ③役員会（確定）';
+    showTab('final');
+  } else {
+    document.getElementById('pw-err').textContent='パスワードが違います';
+    document.getElementById('pw-input').value='';
+    document.getElementById('pw-input').focus();
+  }
+}
+function closePW(){document.getElementById('pw-modal').style.display='none';}
+function lockFinal(){
+  finalUnlocked=false;
+  const t=document.getElementById('tab-final');
+  t.classList.remove('unlocked','on');t.classList.add('locked');
+  t.textContent='🔒 ③役員会（確定）';
+  showTab('input');
+}
+
+// ── 社員データ ──
+const EMPS=[{"store":"大阪店","name":"松尾孝宏","age":46,"table37":"②営業","rank37":"課長","grade37":"B-2号","base_pay":155000,"rank_pay":250000,"result":24106784,"target":27750000,"achieve":0.8687,"memo":"","emp_no":"0108"},{"store":"大阪店","name":"大石将弘","age":41,"table37":"②営業","rank37":"係長","grade37":"C-2号","base_pay":140500,"rank_pay":210000,"result":17733654,"target":23525001,"achieve":0.7538,"memo":"","emp_no":"0109"},{"store":"大阪店","name":"榮秀利","age":26,"table37":"③施工管理","rank37":"2級職","grade37":"A-1号","base_pay":84000,"rank_pay":150000,"result":14773851,"target":10725003,"achieve":1.3775,"memo":"","emp_no":"0135"},{"store":"大阪店","name":"中西凜太","age":25,"table37":"②営業","rank37":"2級職","grade37":"B-1号","base_pay":80000,"rank_pay":139000,"result":19998901,"target":15155004,"achieve":1.3196,"memo":"","emp_no":"0144"},{"store":"大阪店","name":"安福翼","age":25,"table37":"②営業","rank37":"2級職","grade37":"B-3号","base_pay":80000,"rank_pay":135000,"result":10250360,"target":14930004,"achieve":0.6866,"memo":"","emp_no":"0146"},{"store":"大阪店","name":"誉田裕一郎","age":36,"table37":"②営業","rank37":"2級職","grade37":"C-2号","base_pay":123500,"rank_pay":131000,"result":12065700,"target":11475000,"achieve":1.0515,"memo":"2026.6退職","emp_no":"0172"},{"store":"大阪店","name":"笹山慎悟","age":27,"table37":"②営業","rank37":"3級職","grade37":"A-1号","base_pay":88000,"rank_pay":122000,"result":null,"target":null,"achieve":null,"memo":"2026.2.11入社 / 2026.8から / 対象外","emp_no":"0199"},{"store":"大阪店","name":"光畑祥子","age":49,"table37":"④設計","rank37":"係長","grade37":"C-3号","base_pay":142000,"rank_pay":173500,"result":25449915,"target":18857502,"achieve":1.3496,"memo":"","emp_no":"0313"},{"store":"大阪店","name":"當眞聖子","age":51,"table37":"④設計","rank37":"1級職","grade37":"A-2号","base_pay":145500,"rank_pay":140000,"result":15072026,"target":17679996,"achieve":0.8525,"memo":"","emp_no":"0326"},{"store":"大阪店","name":"杉江優奈","age":38,"table37":"④設計","rank37":"2級職","grade37":"A-1号","base_pay":115500,"rank_pay":124000,"result":4160871,"target":5449998,"achieve":0.7635,"memo":"時短：6/8 / 2025.4/28復帰 / 2025年9月から / 7ヶ月分","emp_no":"0327"},{"store":"神戸店","name":"武川聖","age":27,"table37":"③施工管理","rank37":"主任","grade37":"C-2号","base_pay":88000,"rank_pay":185000,"result":18300081,"target":12150000,"achieve":1.5062,"memo":"","emp_no":"0125"},{"store":"神戸店","name":"豊田祐寿","age":37,"table37":"②営業","rank37":"主任","grade37":"A-3号","base_pay":127000,"rank_pay":190000,"result":25792667,"target":22769997,"achieve":1.1327,"memo":"","emp_no":"0126"},{"store":"神戸店","name":"田中透磨","age":23,"table37":"②営業","rank37":"2級職","grade37":"B-1号","base_pay":72500,"rank_pay":139000,"result":20416780,"target":14844996,"achieve":1.3753,"memo":"","emp_no":"0142"},{"store":"神戸店","name":"片山斉子","age":52,"table37":"④設計","rank37":"主任","grade37":"C-3号","base_pay":147000,"rank_pay":150000,"result":15033243,"target":18129996,"achieve":0.8292,"memo":"","emp_no":"0318"},{"store":"神戸店","name":"山地大樹","age":25,"table37":"②営業","rank37":"3級職","grade37":"A-1号","base_pay":80000,"rank_pay":122000,"result":null,"target":null,"achieve":null,"memo":"2025.11.11入社 / 2026.6月から / 1/12","emp_no":"0195"},{"store":"神戸店","name":"橋本明憲","age":41,"table37":"②営業","rank37":"3級職","grade37":"A-1号","base_pay":140500,"rank_pay":122000,"result":null,"target":null,"achieve":null,"memo":"2025.12.11入社 / 対象外","emp_no":"0198"},{"store":"神戸店","name":"薬師寺裕介","age":32,"table37":"②営業","rank37":"3級職","grade37":"A-1号","base_pay":108000,"rank_pay":122000,"result":null,"target":null,"achieve":null,"memo":"2026.4.11入社 / 対象外","emp_no":"0203"},{"store":"西宮店","name":"泰山愛佳","age":27,"table37":"②営業","rank37":"1級職","grade37":"B-3号","base_pay":88000,"rank_pay":158000,"result":16972800,"target":16749996,"achieve":1.0133,"memo":"","emp_no":"0136"},{"store":"西宮店","name":"矢原直人","age":40,"table37":"②営業","rank37":"1級職","grade37":"C-1号","base_pay":137500,"rank_pay":156000,"result":12688022,"target":20190003,"achieve":0.6284,"memo":"","emp_no":"0140"},{"store":"西宮店","name":"藤田千尋","age":42,"table37":"④設計","rank37":"2級職","grade37":"C-3号","base_pay":126500,"rank_pay":112000,"result":9339836,"target":9120003,"achieve":1.0241,"memo":"2025.7から正社員 / 9ヶ月分","emp_no":"0338"},{"store":"京都店","name":"濵﨑千智","age":52,"table37":"④設計","rank37":"1級職","grade37":"A-3号","base_pay":147000,"rank_pay":138500,"result":8349278,"target":13200003,"achieve":0.6325,"memo":"","emp_no":"0304"},{"store":"京都店","name":"石田和美","age":47,"table37":"②営業","rank37":"2級職","grade37":"B-3号","base_pay":157500,"rank_pay":135000,"result":10688567,"target":16366670,"achieve":0.6531,"memo":"2025年6月から","emp_no":"0185"},{"store":"京都店","name":"内田泰平","age":42,"table37":"②営業","rank37":"1級職","grade37":"C-1号","base_pay":143500,"rank_pay":156000,"result":7066190,"target":9199998,"achieve":0.7681,"memo":"4/11入社 / 2025年10月から6 / ヶ月分","emp_no":"0190"},{"store":"京都店","name":"中村依里","age":40,"table37":"設計職","rank37":"免許無","grade37":"1級-E","base_pay":0,"rank_pay":1500,"result":2895281,"target":2994996,"achieve":0.9667,"memo":"","emp_no":"0603"},{"store":"京都店","name":"太田知貴","age":31,"table37":"②営業","rank37":"2級職","grade37":"B-3号","base_pay":104000,"rank_pay":135000,"result":null,"target":null,"achieve":null,"memo":"2026.4.11入社 / 対象外","emp_no":"0202"},{"store":"横浜店","name":"遠藤泉","age":38,"table37":"④設計","rank37":"係長","grade37":"B-3号","base_pay":115500,"rank_pay":178000,"result":16107023,"target":20025003,"achieve":0.8043,"memo":"","emp_no":"0328"},{"store":"横浜店","name":"古川麻里子","age":41,"table37":"④設計","rank37":"主任","grade37":"C-3号","base_pay":124000,"rank_pay":150000,"result":16571510,"target":19175001,"achieve":0.8642,"memo":"","emp_no":"0330"},{"store":"横浜店","name":"萩原舞花","age":27,"table37":"②営業","rank37":"主任","grade37":"C-3号","base_pay":88000,"rank_pay":178000,"result":19703939,"target":19062504,"achieve":1.0336,"memo":"","emp_no":"0153"},{"store":"横浜店","name":"小池薫乃","age":26,"table37":"④設計","rank37":"2級職","grade37":"A-2号","base_pay":75000,"rank_pay":122500,"result":15853307,"target":14400003,"achieve":1.1009,"memo":"","emp_no":"0154"},{"store":"横浜店","name":"伊藤康貴","age":30,"table37":"②営業","rank37":"2級職","grade37":"C-2号","base_pay":100000,"rank_pay":131000,"result":14913669,"target":16062504,"achieve":0.9285,"memo":"","emp_no":"0166"},{"store":"横浜店","name":"中山正隆","age":29,"table37":"②営業","rank37":"2級職","grade37":"B-1号","base_pay":96000,"rank_pay":139000,"result":18926841,"target":15729999,"achieve":1.2032,"memo":"","emp_no":"0171"},{"store":"横浜店","name":"杵渕和江","age":46,"table37":"②営業","rank37":"2級職","grade37":"C-2号","base_pay":155000,"rank_pay":131000,"result":null,"target":null,"achieve":null,"memo":"2026.3.11入社 / 対象外","emp_no":"0200"},{"store":"東京店","name":"吉田航太","age":41,"table37":"②営業","rank37":"主任","grade37":"B-2号","base_pay":140500,"rank_pay":186000,"result":10848327,"target":22250004,"achieve":0.4876,"memo":"","emp_no":"0150"},{"store":"東京店","name":"大嶋光彦","age":29,"table37":"②営業","rank37":"2級職","grade37":"B-3号","base_pay":96000,"rank_pay":135000,"result":10144320,"target":16887498,"achieve":0.6007,"memo":"","emp_no":"0160"},{"store":"東京店","name":"霞すず","age":30,"table37":"④設計","rank37":"2級職","grade37":"B-2号","base_pay":89000,"rank_pay":118000,"result":12867909,"target":14535003,"achieve":0.8853,"memo":"","emp_no":"0332"},{"store":"東京店","name":"中村司","age":28,"table37":"②営業","rank37":"3級職","grade37":"A-1号","base_pay":92000,"rank_pay":122000,"result":6122325,"target":14150004,"achieve":0.4327,"memo":"休職中","emp_no":"0181"},{"store":"東京店","name":"記野亜季","age":40,"table37":"②営業","rank37":"2級職","grade37":"C-2号","base_pay":137500,"rank_pay":131000,"result":1932915,"target":4250001,"achieve":0.4548,"memo":"2026年1月から / 3/12","emp_no":"0192"},{"store":"東京店","name":"荒川智美","age":27,"table37":"②営業","rank37":"2級職","grade37":"C-2号","base_pay":88000,"rank_pay":131000,"result":1667340,"target":2920000,"achieve":0.571,"memo":"2026.1.11から正社員 / 2ヶ月分","emp_no":"0336"},{"store":"施工管理","name":"冨田江麻","age":43,"table37":"⑥サポート","rank37":"課長","grade37":"A-3号","base_pay":0,"rank_pay":0,"result":10905932,"target":6824997,"achieve":1.5979,"memo":"","emp_no":"0103"},{"store":"施工管理","name":"吉川ゆい","age":30,"table37":"⑥サポート","rank37":"主任（係長）","grade37":"B-3号","base_pay":78000,"rank_pay":142000,"result":17370963,"target":12030003,"achieve":1.444,"memo":"","emp_no":"0123"},{"store":"ハコ大阪","name":"福田義根","age":43,"table37":"③施工管理","rank37":"課長","grade37":"A-1号","base_pay":146500,"rank_pay":263000,"result":30293829,"target":26005002,"achieve":1.1649,"memo":"","emp_no":"0402"},{"store":"ハコ大阪","name":"大友由希","age":39,"table37":"②営業","rank37":"主任","grade37":"C-2号","base_pay":134000,"rank_pay":180000,"result":20704303,"target":22165002,"achieve":0.9341,"memo":"","emp_no":"0309"},{"store":"ハコ大阪","name":"荻野めぐみ","age":43,"table37":"②営業","rank37":"1級職","grade37":"C-1号","base_pay":0,"rank_pay":0,"result":24543378,"target":17751000,"achieve":1.3826,"memo":"","emp_no":"0114"},{"store":"ハコ大阪","name":"増田翠","age":33,"table37":"②営業","rank37":"1級職","grade37":"A-1号","base_pay":112000,"rank_pay":168000,"result":21311841,"target":19900002,"achieve":1.0709,"memo":"","emp_no":"0315"},{"store":"ハコ大阪","name":"中塚由真","age":34,"table37":"②営業","rank37":"係長","grade37":"C-3号","base_pay":116000,"rank_pay":208000,"result":19650075,"target":22390002,"achieve":0.8776,"memo":"","emp_no":"0322"},{"store":"ハコ大阪","name":"石村麻子","age":46,"table37":"②営業","rank37":"主任","grade37":"B-2号","base_pay":155000,"rank_pay":186000,"result":22444161,"target":22239999,"achieve":1.0092,"memo":"","emp_no":"0323"},{"store":"ハコ大阪","name":"金子拓巳","age":28,"table37":"③施工管理","rank37":"1級職","grade37":"B-3号","base_pay":92000,"rank_pay":163000,"result":21139335,"target":17307501,"achieve":1.2214,"memo":"","emp_no":"0414"},{"store":"ハコ大阪","name":"山口和俊","age":33,"table37":"②営業","rank37":"主任","grade37":"C-3号","base_pay":112000,"rank_pay":178000,"result":29296408,"target":21122499,"achieve":1.387,"memo":"","emp_no":"0162"},{"store":"ハコ大阪","name":"山谷めぐみ","age":46,"table37":"⑥サポート","rank37":"主任","grade37":"C-2号","base_pay":117000,"rank_pay":139000,"result":12317710,"target":7575003,"achieve":1.6261,"memo":"","emp_no":"0411"},{"store":"ハコ大阪","name":"杉浦嘉紀","age":25,"table37":"②営業","rank37":"3級職","grade37":"A-1号","base_pay":80000,"rank_pay":122000,"result":1374802,"target":7399998,"achieve":0.1858,"memo":"2025.4.11入社 / 2025年10月から6ヶ月分","emp_no":"0335"},{"store":"ハコ大阪","name":"西田梨乃","age":26,"table37":"②営業","rank37":"2級職","grade37":"C-2号","base_pay":84000,"rank_pay":131000,"result":null,"target":null,"achieve":null,"memo":"2025.10.11入社 / 2026年5月から / 対象外","emp_no":"0194"},{"store":"ハコ山下公園","name":"千田龍成","age":36,"table37":"③施工管理","rank37":"1級職","grade37":"A-1号","base_pay":123500,"rank_pay":173000,"result":24569148,"target":23072499,"achieve":1.0649,"memo":"","emp_no":"0147"},{"store":"ハコ山下公園","name":"小野愛","age":33,"table37":"②営業","rank37":"主任","grade37":"C-2号","base_pay":0,"rank_pay":0,"result":27784858,"target":21265002,"achieve":1.3066,"memo":"","emp_no":"0319"},{"store":"ハコ山下公園","name":"有本伽菜","age":29,"table37":"②営業","rank37":"1級職","grade37":"B-3号","base_pay":96000,"rank_pay":158000,"result":18904830,"target":18689997,"achieve":1.0115,"memo":"","emp_no":"0325"},{"store":"ハコ山下公園","name":"中嶋勝志","age":36,"table37":"③施工管理","rank37":"2級職","grade37":"B-1号","base_pay":123500,"rank_pay":144000,"result":21871177,"target":18648336,"achieve":1.1728,"memo":"","emp_no":"0173"},{"store":"ハコ山下公園","name":"西谷俊介","age":31,"table37":"②営業","rank37":"2級職","grade37":"C-1号","base_pay":104000,"rank_pay":133000,"result":19625918,"target":16773747,"achieve":1.17,"memo":"","emp_no":"0333"},{"store":"ハコ山下公園","name":"櫨本博之","age":47,"table37":"②営業","rank37":"1級職","grade37":"C-3号","base_pay":157500,"rank_pay":152000,"result":17382340,"target":19705000,"achieve":0.8821,"memo":"2025.5から / 11か月","emp_no":"0183"},{"store":"ハコ山下公園","name":"遠矢晃世","age":26,"table37":"②営業","rank37":"3級職","grade37":"A-1号","base_pay":84000,"rank_pay":122000,"result":5025048,"target":12541670,"achieve":0.4007,"memo":"2025.5から / 11か月分","emp_no":"0334"},{"store":"きがえる大阪店","name":"芋野修一郎","age":29,"table37":"③施工管理","rank37":"2級職","grade37":"A-2号","base_pay":96000,"rank_pay":148000,"result":11894828,"target":10125000,"achieve":1.1748,"memo":"","emp_no":"0413"},{"store":"きがえる大阪店","name":"狭間衿南","age":34,"table37":"②営業","rank37":"2級職","grade37":"C-3号","base_pay":116000,"rank_pay":129000,"result":14288405,"target":14324997,"achieve":0.9974,"memo":"","emp_no":"0168"},{"store":"きがえる大阪店","name":"梶原彩香","age":23,"table37":"②営業","rank37":"2級職","grade37":"C-3号","base_pay":72500,"rank_pay":129000,"result":11043728,"target":11491668,"achieve":0.961,"memo":"","emp_no":"0175"},{"store":"きがえる大阪店","name":"信貴亮哉","age":23,"table37":"②営業","rank37":"2級職","grade37":"C-3号","base_pay":72500,"rank_pay":129000,"result":10180985,"target":10966671,"achieve":0.9284,"memo":"","emp_no":"0176"},{"store":"きがえる大阪店","name":"内田雄大","age":24,"table37":"②営業","rank37":"3級職","grade37":"A-1号","base_pay":76000,"rank_pay":122000,"result":null,"target":null,"achieve":null,"memo":"2026.4.11入社 / 対象外","emp_no":"0201"},{"store":"きがえる吹田店","name":"野添未来","age":32,"table37":"②営業","rank37":"2級職","grade37":"B-3号","base_pay":108000,"rank_pay":135000,"result":16100627,"target":14297499,"achieve":1.1261,"memo":"","emp_no":"0164"},{"store":"きがえる吹田店","name":"植田芳","age":49,"table37":"②営業","rank37":"3級職","grade37":"A-1号","base_pay":162500,"rank_pay":122000,"result":14326076,"target":15572997,"achieve":0.9199,"memo":"","emp_no":"0170"},{"store":"きがえる吹田店","name":"松井怜親","age":39,"table37":"②営業","rank37":"2級職","grade37":"C-3号","base_pay":134000,"rank_pay":129000,"result":6164363,"target":15610710,"achieve":0.3949,"memo":"","emp_no":"0180"},{"store":"きがえる吹田店","name":"濱田剛史","age":39,"table37":"②営業","rank37":"3級職","grade37":"A-1号","base_pay":134000,"rank_pay":122000,"result":5339007,"target":11716667,"achieve":0.4557,"memo":"2025.6から / 10カ月分","emp_no":"0186"},{"store":"きがえる吹田店","name":"松本一城","age":46,"table37":"②営業","rank37":"2級職","grade37":"C-3号","base_pay":155000,"rank_pay":129000,"result":null,"target":null,"achieve":null,"memo":"2025.11.11入社 / 2026.6月から / 1/12","emp_no":"0197"}];
+const saves={};let curEmp=null;
+const STORES=[...new Set(EMPS.map(e=>e.store))];
+
+function init(){
+  const ss=document.getElementById('sel-store');
+  STORES.forEach(s=>ss.add(new Option(s,s)));
+  ['meet-sf','final-sf','mig-sf'].forEach(id=>{const el=document.getElementById(id);STORES.forEach(s=>el.add(new Option(s,s)));});
+  updateProg();loadData();
+}
+
+function showTab(t){
+  if(t==='final'&&!finalUnlocked){tryUnlock();return;}
+  ['input','meet','final','migrate','admin'].forEach(id=>{
+    document.getElementById('v-'+id).style.display=id===t?'block':'none';
+    const tb=document.getElementById('tab-'+id);
+    if(tb)tb.classList.toggle('on',id===t);
+  });
+  document.getElementById('modal-area').style.display='none';
+  if(t==='meet')renderMeet();
+  if(t==='final')renderFinal();
+  if(t==='migrate')renderMigrate();
+  if(t==='admin'){renderAdmMetrics();renderAdm();}
+}
+
+function getStatus(n){const s=saves[n];if(!s)return 0;if(s.fDelta&&s.fDelta!=='')return 3;if(s.mDelta&&s.mDelta!=='')return 2;if(s.comment)return 1;return 0;}
+function stBadge(st){if(st===3)return '<span class="ph3">③確定済</span>';if(st===2)return '<span class="ph2">②暫定済</span>';if(st===1)return '<span class="ph1">①入力済</span>';return '<span class="badge bgray">未入力</span>';}
+function pct(a){return a!=null?(a*100).toFixed(1)+'%':'対象外';}
+function yen(n){return n?'¥'+Math.round(n).toLocaleString('ja-JP'):'—';}
+
+function renderInput(){
+  const store=document.getElementById('sel-store').value;
+  const emps=store?EMPS.filter(e=>e.store===store):[];
+  const done=emps.filter(e=>getStatus(e.name)>=1).length;
+  document.getElementById('prog-store').textContent=store?`${done}/${emps.length}名`:'';
+  document.getElementById('prog-bar').style.width=emps.length?(done/emps.length*100)+'%':'0%';
+  if(!store){document.getElementById('input-list').innerHTML='';return;}
+  let h='<div class="card" style="padding:0"><div class="tw"><table><thead><tr><th style="width:90px">氏名</th><th style="width:70px">役職</th><th style="width:75px">37期等級</th><th style="width:65px">達成率</th><th style="width:95px">自動提案変動</th><th style="width:110px">自動提案結果</th><th style="width:160px">備考</th><th style="width:115px">上長コメント</th><th style="width:80px">状態</th></tr></thead><tbody>';
+  emps.forEach(emp=>{
+    const au=autoCalc(emp),s=saves[emp.name]||{},st=getStatus(emp.name);
+    const ab=emp.achieve==null?'<span class="badge bgray">対象外</span>':emp.achieve>=1?`<span class="badge bg">${pct(emp.achieve)}</span>`:emp.achieve>=0.9?`<span class="badge bb">${pct(emp.achieve)}</span>`:emp.achieve>=0.7?`<span class="badge ba">${pct(emp.achieve)}</span>`:`<span class="badge br">${pct(emp.achieve)}</span>`;
+    const ac=au.roleChanged?`<span class="badge borange">${au.delta}</span>`:`<span class="badge ${au.delta.startsWith('+')?'bg':au.delta==='保留'?'bb':'br'}">${au.delta}</span>`;
+    const ar=au.roleChanged?`<span style="font-size:11px;background:#FFF3E0;color:#E65100;padding:2px 5px;border-radius:4px">★${au.rank} ${au.grade}</span>`:`<span style="font-size:12px">${au.rank} ${au.grade}</span>`;
+    const inp=s.comment?`<span style="font-size:11px;color:#757575">${s.hDelta||''} ${s.comment.slice(0,14)}...</span>`:'<span style="color:#BDBDBD;font-size:12px">未入力</span>';
+    h+=`<tr style="cursor:pointer" onclick="openM('${emp.name}')"><td style="font-weight:700">${emp.name}</td><td>${emp.rank37}</td><td>${emp.grade37}</td><td>${ab}</td><td>${ac}</td><td>${ar}</td><td style="font-size:11px;color:#6A1B9A">${emp.memo||''}</td><td>${inp}</td><td>${stBadge(st)}</td></tr>`;
+  });
+  h+='</tbody></table></div></div>';
+  document.getElementById('input-list').innerHTML=h;
+}
+
+function openM(name){
+  curEmp=name;const emp=EMPS.find(e=>e.name===name);const au=autoCalc(emp);const s=saves[name]||{};
+  document.getElementById('m-name').textContent=emp.name;
+  document.getElementById('m-sub').textContent=`${emp.store} / ${emp.table37} / ${emp.rank37} ${emp.grade37}`;
+  document.getElementById('m-info').innerHTML=`<div class="ir"><div class="ik">完工利益 結果</div><div class="iv">${yen(emp.result)}</div></div><div class="ir"><div class="ik">完工利益 設定</div><div class="iv">${yen(emp.target)}</div></div><div class="ir"><div class="ik">達成率</div><div class="iv">${pct(emp.achieve)}</div></div>`;
+  document.getElementById('m-auto').innerHTML=`<div class="abox"><div class="al">達成率基準による自動提案</div><div class="av">${au.delta}　→　${au.rank} ${au.grade}</div></div>${au.roleChanged?`<div class="obox">★役職変更：${emp.rank37} → ${au.rank}</div>`:''}`;
+  document.getElementById('m-memo').innerHTML=emp.memo?`<div class="mbox">${emp.memo}</div>`:'';
+  const ds=['保留','+9','+8','+7','+6','+5','+4','+3','+2','+1','0','-1','-2','-3','-4','-5','対象外'];
+  document.getElementById('mi-delta').innerHTML=ds.map(d=>`<option ${(s.hDelta||au.delta)===d?'selected':''}>${d}</option>`).join('');
+  document.getElementById('mi-rank').innerHTML=RANKS_OLD.map(r=>`<option ${(s.hRank||au.rank)===r?'selected':''}>${r}</option>`).join('');
+  document.getElementById('mi-grade').innerHTML=GRADES.map(g=>`<option value="${g}号" ${(s.hGrade||au.grade)===g+'号'?'selected':''}>${g}号</option>`).join('');
+  document.getElementById('mi-comment').value=s.comment||'';
+  document.getElementById('m-smsg').style.display='none';
+  document.getElementById('modal-area').style.display='block';
+}
+
+async function saveM(){
+  const c=document.getElementById('mi-comment').value.trim();
+  if(!c){alert('上長コメントを入力してください');return;}
+  const emp=EMPS.find(e=>e.name===curEmp);
+  const hD=document.getElementById('mi-delta').value,hR=document.getElementById('mi-rank').value,hG=document.getElementById('mi-grade').value;
+  const btn=document.getElementById('save-btn');
+  btn.textContent='保存中...';btn.disabled=true;
+  try{
+    await upsert(emp.emp_no,{name:{value:emp.name},store:{value:emp.store},hope_delta:{value:hD},hope_rank:{value:hR},hope_grade:{value:hG},comment:{value:c}});
+    if(!saves[curEmp])saves[curEmp]={};
+    saves[curEmp].hDelta=hD;saves[curEmp].hRank=hR;saves[curEmp].hGrade=hG;saves[curEmp].comment=c;
+    document.getElementById('m-smsg').style.display='block';
+    setSyncStatus('ok','キントーンに保存済み');
+    setTimeout(()=>{closeM();renderInput();updateProg();},800);
+  }catch(e){alert('保存エラー: '+e.message);setSyncStatus('err','保存エラー');}
+  finally{btn.textContent='保存してキントーンに送信';btn.disabled=false;}
+}
+function closeM(){document.getElementById('modal-area').style.display='none';curEmp=null;}
+
+function renderMeet(){
+  const sf=document.getElementById('meet-sf').value,ff=document.getElementById('meet-ff').value;
+  let emps=sf?EMPS.filter(e=>e.store===sf):EMPS;
+  if(ff==='入力済')emps=emps.filter(e=>saves[e.name]?.comment);
+  if(ff==='役職変更')emps=emps.filter(e=>autoCalc(e).roleChanged);
+  document.getElementById('meet-tb').innerHTML=emps.map(emp=>{
+    const au=autoCalc(emp),s=saves[emp.name]||{},hs=s.hDelta?`${s.hDelta}→${s.hRank} ${s.hGrade}`:'—';
+    return `<tr><td style="font-weight:700">${emp.name}</td><td style="font-size:11px">${emp.store}</td><td style="font-size:11px">${emp.rank37} ${emp.grade37}</td><td>${pct(emp.achieve)}</td><td style="font-size:11px">${au.delta} ${au.rank} ${au.grade}${au.roleChanged?' <span class="badge borange">★</span>':''}</td><td style="font-size:11px">${hs}</td><td><input type="text" value="${s.mDelta||''}" onchange="svK('${emp.emp_no}','${emp.name}','mDelta','meet_delta',this.value)" style="width:52px;font-size:12px;padding:3px 6px"></td><td><select onchange="svK('${emp.emp_no}','${emp.name}','mRank','meet_rank',this.value)" style="font-size:11px;padding:3px">${RANKS_OLD.map(r=>`<option ${s.mRank===r?'selected':''}>${r}</option>`).join('')}</select></td><td><select onchange="svK('${emp.emp_no}','${emp.name}','mGrade','meet_grade',this.value)" style="font-size:11px;padding:3px">${GRADES.map(g=>`<option value="${g}号" ${s.mGrade===g+'号'?'selected':''}>${g}号</option>`).join('')}</select></td><td><input type="text" value="${s.mMemo||''}" onchange="svK('${emp.emp_no}','${emp.name}','mMemo','meet_memo',this.value)" style="font-size:11px;padding:3px" placeholder="メモ"></td><td>${stBadge(getStatus(emp.name))}</td></tr>`;
+  }).join('');
+}
+
+function renderFinal(){
+  const sf=document.getElementById('final-sf').value;
+  let emps=sf?EMPS.filter(e=>e.store===sf):EMPS;
+  document.getElementById('final-tb').innerHTML=emps.map(emp=>{
+    const s=saves[emp.name]||{},ms=s.mDelta?`${s.mDelta}→${s.mRank||''} ${s.mGrade||''}`:'—';
+    const fR=s.fRank||'',fG=s.fGrade||'',conf=fR&&fG?`${fR} ${fG}`:s.mRank&&s.mGrade?`${s.mRank} ${s.mGrade}`:'';
+    return `<tr><td style="font-weight:700">${emp.name}</td><td style="font-size:11px">${emp.store}</td><td style="font-size:11px">${emp.rank37} ${emp.grade37}</td><td>${pct(emp.achieve)}</td><td style="font-size:11px">${ms}</td><td><input type="text" value="${s.fDelta||''}" onchange="svK('${emp.emp_no}','${emp.name}','fDelta','final_delta',this.value)" style="width:52px;font-size:12px;padding:3px 6px"></td><td><select onchange="svK('${emp.emp_no}','${emp.name}','fRank','final_rank',this.value)" style="font-size:11px;padding:3px">${RANKS_OLD.map(r=>`<option ${fR===r?'selected':''}>${r}</option>`).join('')}</select></td><td><select onchange="svK('${emp.emp_no}','${emp.name}','fGrade','final_grade',this.value)" style="font-size:11px;padding:3px">${GRADES.map(g=>`<option value="${g}号" ${fG===g+'号'?'selected':''}>${g}号</option>`).join('')}</select></td><td style="font-weight:700;color:#1D9E75;font-size:12px">${conf}</td><td><input type="text" value="${s.fMemo||''}" onchange="svK('${emp.emp_no}','${emp.name}','fMemo','final_memo',this.value)" style="font-size:11px;padding:3px" placeholder="メモ"></td><td>${stBadge(getStatus(emp.name))}</td></tr>`;
+  }).join('');
+}
+
+const saveTimer={};
+async function svK(empNo,name,lk,kk,val){
+  if(!saves[name])saves[name]={};saves[name][lk]=val;
+  clearTimeout(saveTimer[empNo]);
+  saveTimer[empNo]=setTimeout(async()=>{
+    try{await upsert(empNo,{[kk]:{value:val},name:{value:name}});setSyncStatus('ok','保存済み');}
+    catch(e){setSyncStatus('err','保存エラー: '+e.message);}
+  },800);
+}
+
+function renderMigrate(){
+  const sf=document.getElementById('mig-sf').value,ff=document.getElementById('mig-ff').value;
+  let emps=sf?EMPS.filter(e=>e.store===sf):EMPS;
+  if(ff==='確定済')emps=emps.filter(e=>getStatus(e.name)===3);
+  document.getElementById('mig-tb').innerHTML=emps.map(emp=>{
+    const s=saves[emp.name]||{},fR=s.fRank||s.mRank||null,fG=s.fGrade||s.mGrade||null;
+    const cs=fR&&fG?`${fR} ${fG}`:'（査定前）';
+    if(emp.base_pay===0&&emp.rank_pay===0)return `<tr><td style="font-weight:700">${emp.name}</td><td style="font-size:11px">${emp.store}</td><td style="font-size:11px">${emp.rank37} ${emp.grade37}</td><td style="font-size:11px">${cs}</td><td colspan="9" style="color:#BDBDBD;font-size:12px">給与データなし</td></tr>`;
+    const m=calcMig(emp,fR,fG),dc=m.diff===0?'bb':m.diff>0?'bg':'br';
+    return `<tr><td style="font-weight:700">${emp.name}</td><td style="font-size:11px">${emp.store}</td><td style="font-size:11px">${emp.rank37} ${emp.grade37}</td><td style="font-size:11px;color:#1D9E75;font-weight:700">${cs}</td><td style="font-size:12px">${m.tbl}</td><td style="font-size:12px">${yen(m.ot)}</td><td style="font-size:12px">${yen(m.na)}</td><td style="font-size:12px">${m.rn}</td><td style="font-size:12px">${yen(m.rp)}</td><td style="font-weight:700;color:#1565C0">${m.ng}</td><td style="font-size:12px">${yen(m.ngp)}</td><td style="font-weight:700">${yen(m.nt)}</td><td><span class="badge ${dc}">${m.diff>=0?'+':''}${yen(m.diff)}</span></td></tr>`;
+  }).join('');
+}
+
+function renderAdmMetrics(){
+  const p1=EMPS.filter(e=>getStatus(e.name)>=1).length,p2=EMPS.filter(e=>getStatus(e.name)>=2).length,p3=EMPS.filter(e=>getStatus(e.name)===3).length;
+  document.getElementById('adm-metrics').innerHTML=[{l:'対象者',v:EMPS.length+'名'},{l:'①入力済',v:p1+'名'},{l:'②暫定済',v:p2+'名'},{l:'③確定済',v:p3+'名'}].map(m=>`<div class="metric"><div class="mlb">${m.l}</div><div class="mvl">${m.v}</div></div>`).join('');
+}
+function renderAdm(){
+  document.getElementById('adm-tb').innerHTML=EMPS.map(emp=>{
+    const au=autoCalc(emp),s=saves[emp.name]||{},st=getStatus(emp.name);
+    const fR=s.fRank||s.mRank||'',fG=s.fGrade||s.mGrade||'';
+    let mg='';if(fR&&fG&&emp.base_pay>0){const m=calcMig(emp,fR,fG);mg=`${m.tbl} ${m.ng}`;}
+    return `<tr><td style="font-weight:700">${emp.name}</td><td style="font-size:11px">${emp.store}</td><td style="font-size:11px">${emp.rank37}</td><td style="font-size:11px">${emp.grade37}</td><td>${pct(emp.achieve)}</td><td style="font-size:11px">${au.delta}${au.roleChanged?' ★':''}</td><td style="font-size:11px">${s.hDelta||'—'}</td><td style="font-size:11px">${s.mDelta||'—'}</td><td style="font-size:11px;font-weight:700">${fR}</td><td style="font-size:11px;font-weight:700">${fG}</td><td style="font-size:11px;color:#1565C0;font-weight:700">${mg}</td><td>${stBadge(st)}</td></tr>`;
+  }).join('');
+}
+
+function updateProg(){const done=EMPS.filter(e=>saves[e.name]?.comment).length;document.getElementById('prog-txt').textContent=`①入力: ${done}/${EMPS.length}名`;}
+
+function exportCSV(){
+  const rows=[['店舗','氏名','社員番号','37期役職','37期等級','達成率','自動提案','①希望変動','①希望役職','①希望等級','①コメント','②暫定変動','②暫定役職','②暫定等級','②メモ','③確定変動','③確定役職','③確定等級','③メモ','新テーブル','旧総額','新年齢給','新役職名','新役職手当','新等級','新等級手当','新総額','差額','備考']];
+  EMPS.forEach(emp=>{
+    const au=autoCalc(emp),s=saves[emp.name]||{},fR=s.fRank||s.mRank||'',fG=s.fGrade||s.mGrade||'';
+    let m={tbl:'',ot:'',na:'',rn:'',rp:'',ng:'',ngp:'',nt:'',diff:''};
+    if(fR&&fG&&emp.base_pay>0){const r=calcMig(emp,fR,fG);m=r;}
+    rows.push([emp.store,emp.name,emp.emp_no,emp.rank37,emp.grade37,pct(emp.achieve),au.delta,s.hDelta||'',s.hRank||'',s.hGrade||'',s.comment||'',s.mDelta||'',s.mRank||'',s.mGrade||'',s.mMemo||'',s.fDelta||'',fR,fG,s.fMemo||'',m.tbl,m.ot,m.na,m.rn,m.rp,m.ng,m.ngp,m.nt,m.diff,emp.memo||'']);
+  });
+  const csv='\uFEFF'+rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download='38期昇降格査定.csv';a.click();
+}
+
+init();
+</script>
+</body>
+</html>
