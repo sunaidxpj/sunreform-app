@@ -356,7 +356,11 @@ function findGrade(tv,tbl){
 }
 function calcMig(emp,cR,cG){
   const rank=cR||emp.rank37,tbl=getNewTbl(emp.table37),ot=emp.base_pay+emp.rank_pay+45000;
-  if(isPart(emp)){return{tbl:"パート",rn:emp.rank37,rp:emp.rank_pay,ot:ot,na:0,ng:emp.grade37,ngp:emp.rank_pay,nt:ot,diff:0,nextTarget:0};}
+  if(isPart(emp)){
+    var drP=emp.dist_rate||0.33;
+    var partTgt=Math.ceil(ot*12/drP/100000)*100000;
+    return{tbl:"パート",rn:emp.rank37,rp:emp.rank_pay,ot:ot,na:0,ng:emp.grade37,ngp:emp.rank_pay,nt:ot,diff:0,nextTarget:partTgt};
+  }
   const na=getAP(getAge(emp.birth_date),tbl),rn=RANK_MAP[rank]||"２級メンバー",rp=RANK_PAY[rn]||10000;
   const fg=findGrade(ot-na-rp-45000,tbl);
   const nt=na+rp+fg.pay+45000;
@@ -666,7 +670,7 @@ function updateImpact(){
     var d=document.getElementById("imp-diff");d.textContent=fmtSign(i.dm);d.style.color=i.dm>0?"#C62828":i.dm<0?"#1D9E75":"#555";
     var dy=document.getElementById("imp-diffy");dy.textContent=fmtSign(i.dy);dy.style.color=i.dy>0?"#C62828":i.dy<0?"#1D9E75":"#555";
     document.getElementById("imp-tgt").textContent=yen(i.tgt);
-    document.getElementById("imp-note").textContent="対象 "+i.cnt+"名(確定 "+i.conf+"名・退職除外 "+i.ret+"名・パートは移行計算無し) / 優先: ③確定＞②暫定＞①希望＞自動提案";
+    document.getElementById("imp-note").textContent="対象 "+i.cnt+"名(確定 "+i.conf+"名・退職除外 "+i.ret+"名) / パートは移行計算なし/利益設定=想定年収÷分配率 / 優先: ③確定＞②暫定＞①希望＞自動提案";
   }catch(e){console.warn("updateImpact:",e);}
 }
 
