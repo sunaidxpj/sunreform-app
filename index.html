@@ -89,6 +89,15 @@ tr:hover td{background:#FAFAFA}
   </div>
   <span id="sync-time" style="color:#BDBDBD"></span>
 </div>
+<div id="impact-bar" style="margin:8px 20px 0;padding:10px 14px;background:linear-gradient(90deg,#E8F5E9,#E3F2FD);border:1px solid #A5D6A7;border-radius:8px;font-size:13px;display:flex;gap:18px;flex-wrap:wrap;align-items:center">
+  <div style="font-weight:700;color:#1B5E20">📊 全社インパクト試算</div>
+  <div>旧月額 <b id="imp-old" style="color:#555">—</b></div>
+  <div>→ 新月額 <b id="imp-new" style="color:#1565C0">—</b></div>
+  <div>月差 <span id="imp-diff" style="font-weight:700">—</span></div>
+  <div>年換算差(×14) <span id="imp-diffy" style="font-weight:700">—</span></div>
+  <div>来期利益設定合計 <b id="imp-tgt" style="color:#E65100">—</b></div>
+  <div style="font-size:11px;color:#757575;margin-left:auto" id="imp-note">—</div>
+</div>
 <div class="tabs" style="margin-top:8px">
   <div class="tab on" id="tab-input" onclick="showTab(&#34;input&#34;)">①上長入力</div>
   <div class="tab" id="tab-meet" onclick="showTab(&#34;meet&#34;)">②会議（暫定）</div>
@@ -519,6 +528,7 @@ function calcPreview(empName, rank, grade){
 const saveTimer={};
 async function svMemo(empNo,name,val){
   const emp=EMPS.find(function(e){return e.name===name;});if(emp)emp.memo=val;
+  updateImpact();
   clearTimeout(saveTimer["memo_"+empNo]);
   saveTimer["memo_"+empNo]=setTimeout(async function(){
     try{await upsert(empNo,{name:{value:name},memo:{value:val}});setSyncStatus("ok","備考を保存");}
@@ -527,6 +537,7 @@ async function svMemo(empNo,name,val){
 }
 async function svK(empNo,name,lk,kk,val){
   if(!saves[name])saves[name]={};saves[name][lk]=val;
+  updateImpact();
   clearTimeout(saveTimer[empNo]);
   saveTimer[empNo]=setTimeout(async function(){
     try{
@@ -564,7 +575,39 @@ function renderAdm(){
   }).join("");
 }
 
-function updateProg(){const done=EMPS.filter(function(e){return saves[e.name]&&saves[e.name].comment;}).length;document.getElementById("prog-txt").textContent="①入力: "+done+"/"+EMPS.length+"名";}
+function updateProg(){const done=EMPS.filter(function(e){return saves[e.name]&&saves[e.name].comment;}).length;document.getElementById("prog-txt").textContent="①入力: "+done+"/"+EMPS.length+"名";updateImpact();}
+function calcImpact(){
+  var om=0,nm=0,tgt=0,cnt=0,ret=0,conf=0;
+  EMPS.forEach(function(emp){
+    if(emp.base_pay===0||emp.base_pay==null)return;
+    if(isRetiring(emp)){ret++;return;}
+    var s=saves[emp.name]||{};
+    var ca=autoCalc(emp);
+    var eR=s.fRank||s.mRank||s.hRank||ca.rank;
+    var eG=s.fGrade||s.mGrade||s.hGrade||ca.grade;
+    if(!eR||!eG)return;
+    var m=calcMig(emp,eR,eG);if(!m)return;
+    var cert=emp.cert_allow||0;
+    om+=emp.base_pay+emp.rank_pay+45000+cert;
+    nm+=m.nt+cert;
+    tgt+=m.nextTarget||0;
+    cnt++;
+    if(s.fRank&&s.fGrade)conf++;
+  });
+  return{om:om,nm:nm,dm:nm-om,dy:(nm-om)*14,tgt:tgt,cnt:cnt,ret:ret,conf:conf};
+}
+function fmtSign(v){return (v>=0?"+":"")+yen(v);}
+function updateImpact(){
+  try{
+    var i=calcImpact();
+    document.getElementById("imp-old").textContent=yen(i.om);
+    document.getElementById("imp-new").textContent=yen(i.nm);
+    var d=document.getElementById("imp-diff");d.textContent=fmtSign(i.dm);d.style.color=i.dm>0?"#C62828":i.dm<0?"#1D9E75":"#555";
+    var dy=document.getElementById("imp-diffy");dy.textContent=fmtSign(i.dy);dy.style.color=i.dy>0?"#C62828":i.dy<0?"#1D9E75":"#555";
+    document.getElementById("imp-tgt").textContent=yen(i.tgt);
+    document.getElementById("imp-note").textContent="対象 "+i.cnt+"名(確定 "+i.conf+"名・退職除外 "+i.ret+"名) / 優先: ③確定＞②暫定＞①希望＞自動提案";
+  }catch(e){console.warn("updateImpact:",e);}
+}
 
 function checkCSVAuth(){
   const pw=prompt("CSV出力パスワードを入力してください");
