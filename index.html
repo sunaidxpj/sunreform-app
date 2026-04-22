@@ -458,11 +458,11 @@ function renderStore(){
     var avgA=b.ach_cnt>0?(b.ach_sum/b.ach_cnt*100).toFixed(1)+"%":"—";
     var gapCls=gap>2?"color:#C62828;font-weight:700":gap<-2?"color:#1D9E75;font-weight:700":"color:#555";
     var diffCls=diffM>0?"color:#C62828":diffM<0?"color:#1D9E75":"color:#555";
-    rows+="<tr><td style=\"font-weight:700\">"+k+"</td><td>"+target+(b.retired?"<span style=\"font-size:10px;color:#757575\"> (+退"+b.retired+")</span>":"")+"</td><td>"+avgA+"</td><td style=\"font-weight:600\">"+(b.auto_d>=0?"+":"")+b.auto_d+"</td><td style=\"font-weight:600\">"+(b.hope_d>=0?"+":"")+b.hope_d+"</td><td style=\""+gapCls+"\">"+(gap>=0?"+":"")+gap+"</td><td>"+yen(b.old_m)+"</td><td style=\"color:#1565C0\">"+yen(b.auto_n)+"</td><td style=\"color:#6A1B9A\">"+yen(b.hope_n)+"</td><td style=\""+diffCls+";font-weight:700\">"+(diffM>=0?"+":"")+yen(Math.abs(diffM)).replace("¥",diffM<0?"-¥":"¥")+"</td><td style=\""+diffCls+";font-weight:700\">"+(diffY>=0?"+":"")+yen(Math.abs(diffY)).replace("¥",diffY<0?"-¥":"¥")+"</td><td>"+b.inp+"/"+target+"</td></tr>";
+    rows+="<tr><td style=\"font-weight:700\">"+k+"</td><td>"+target+(b.retired?"<span style=\"font-size:10px;color:#757575\"> (+退"+b.retired+")</span>":"")+"</td><td>"+avgA+"</td><td style=\"font-weight:600\">"+(b.auto_d>=0?"+":"")+b.auto_d+"</td><td style=\"font-weight:600\">"+(b.hope_d>=0?"+":"")+b.hope_d+"</td><td style=\""+gapCls+"\">"+(gap>=0?"+":"")+gap+"</td><td>"+yen(b.old_m)+"</td><td style=\"color:#1565C0\">"+yen(b.auto_n)+"</td><td style=\"color:#6A1B9A\">"+yen(b.hope_n)+"</td><td style=\""+diffCls+";font-weight:700\">"+fmtSign(diffM)+"</td><td style=\""+diffCls+";font-weight:700\">"+fmtSign(diffY)+"</td><td>"+b.inp+"/"+target+"</td></tr>";
     tot.cnt+=target;tot.auto_d+=b.auto_d;tot.hope_d+=b.hope_d;tot.auto_n+=b.auto_n;tot.hope_n+=b.hope_n;tot.old_m+=b.old_m;tot.inp+=b.inp;
   });
   var tgap=tot.hope_d-tot.auto_d, tdM=tot.hope_n-tot.auto_n, tdY=tdM*14;
-  rows+="<tr style=\"background:#FFF9C4;font-weight:700;border-top:2px solid #F57F17\"><td>合計</td><td>"+tot.cnt+"</td><td>—</td><td>"+(tot.auto_d>=0?"+":"")+tot.auto_d+"</td><td>"+(tot.hope_d>=0?"+":"")+tot.hope_d+"</td><td>"+(tgap>=0?"+":"")+tgap+"</td><td>"+yen(tot.old_m)+"</td><td>"+yen(tot.auto_n)+"</td><td>"+yen(tot.hope_n)+"</td><td>"+(tdM>=0?"+":"")+yen(Math.abs(tdM)).replace("¥",tdM<0?"-¥":"¥")+"</td><td>"+(tdY>=0?"+":"")+yen(Math.abs(tdY)).replace("¥",tdY<0?"-¥":"¥")+"</td><td>"+tot.inp+"/"+tot.cnt+"</td></tr>";
+  rows+="<tr style=\"background:#FFF9C4;font-weight:700;border-top:2px solid #F57F17\"><td>合計</td><td>"+tot.cnt+"</td><td>—</td><td>"+(tot.auto_d>=0?"+":"")+tot.auto_d+"</td><td>"+(tot.hope_d>=0?"+":"")+tot.hope_d+"</td><td>"+(tgap>=0?"+":"")+tgap+"</td><td>"+yen(tot.old_m)+"</td><td>"+yen(tot.auto_n)+"</td><td>"+yen(tot.hope_n)+"</td><td>"+fmtSign(tdM)+"</td><td>"+fmtSign(tdY)+"</td><td>"+tot.inp+"/"+tot.cnt+"</td></tr>";
   document.getElementById("store-tb").innerHTML=rows;
 }
 
@@ -655,7 +655,7 @@ function calcImpact(){
   });
   return{om:om,nm:nm,dm:nm-om,dy:(nm-om)*14,tgt:tgt,cnt:cnt,ret:ret,conf:conf};
 }
-function fmtSign(v){return (v>=0?"+":"")+yen(v);}
+function fmtSign(v){if(v===0)return "¥0";return (v>0?"+":"-")+"¥"+Math.round(Math.abs(v)).toLocaleString("ja-JP");}
 function updateImpact(){
   try{
     var i=calcImpact();
