@@ -103,6 +103,7 @@ tr:hover td{background:#FAFAFA}
   <div class="tab" id="tab-meet" onclick="showTab(&#34;meet&#34;)">②会議（暫定）</div>
   <div class="tab locked" id="tab-final" onclick="tryUnlock()">🔒 ③役員会（確定）</div>
   <div class="tab" id="tab-migrate" onclick="showTab(&#34;migrate&#34;)">7月移行計算</div>
+  <div class="tab" id="tab-store" onclick="showTab(&#34;store&#34;)">店舗別比較</div>
   <div class="tab" id="tab-admin" onclick="showTab(&#34;admin&#34;)">全社一覧</div>
 </div>
 <div class="content">
@@ -168,6 +169,20 @@ tr:hover td{background:#FAFAFA}
     <th style="width:85px">新年齢給</th><th style="width:90px">新役職</th><th style="width:85px">新役職手当</th>
     <th style="width:75px">新等級</th><th style="width:85px">新等級手当</th><th style="width:85px">新総額</th><th style="width:70px">差額</th><th style="width:95px">来期利益設定</th>
   </tr></thead><tbody id="mig-tb"></tbody></table></div></div>
+</div>
+<div id="v-store" style="display:none">
+  <div class="card">
+    <div class="ct">店舗別 自動提案 vs 店長希望 比較</div>
+    <div style="font-size:12px;color:#757575;margin-bottom:8px">店長が自動提案に対してどれだけ上げ/下げ希望を出しているかを俯瞰。乖離(希望-自動)が大きい店舗は会議で要確認。</div>
+  </div>
+  <div class="card" style="padding:0"><div class="tw"><table><thead><tr>
+    <th style="width:110px">店舗</th><th style="width:60px">人数</th><th style="width:75px">平均達成率</th>
+    <th style="width:85px">自動提案<br>変動合計</th><th style="width:85px">店長希望<br>変動合計</th><th style="width:80px">乖離<br>(希望-自動)</th>
+    <th style="width:100px">旧 月額合計</th>
+    <th style="width:110px">自動提案<br>新月額合計</th><th style="width:110px">店長希望<br>新月額合計</th>
+    <th style="width:95px">希望vs自動<br>差額/月</th><th style="width:95px">希望vs自動<br>差額/年</th>
+    <th style="width:60px">①入力済</th>
+  </tr></thead><tbody id="store-tb"></tbody></table></div></div>
 </div>
 <div id="v-admin" style="display:none">
   <div class="metrics" id="adm-metrics"></div>
@@ -395,7 +410,7 @@ function init(){
 
 function showTab(t){
   if(t==="final"&&!finalUnlocked){tryUnlock();return;}
-  ["input","meet","final","migrate","admin"].forEach(function(id){
+  ["input","meet","final","migrate","store","admin"].forEach(function(id){
     document.getElementById("v-"+id).style.display=id===t?"block":"none";
     const tb=document.getElementById("tab-"+id);
     if(tb)tb.classList.toggle("on",id===t);
@@ -404,7 +419,51 @@ function showTab(t){
   if(t==="meet")renderMeet();
   if(t==="final")renderFinal();
   if(t==="migrate")renderMigrate();
+  if(t==="store")renderStore();
   if(t==="admin"){renderAdmMetrics();renderAdm();}
+}
+
+function parseDelta(s){if(!s)return null;if(s==="保留"||s==="対象外"||s==="0")return 0;var n=parseInt(s,10);return isNaN(n)?null:n;}
+function renderStore(){
+  var byStore={};
+  EMPS.forEach(function(emp){
+    if(emp.base_pay===0||emp.base_pay==null)return;
+    if(!byStore[emp.store])byStore[emp.store]={emps:[],auto_d:0,hope_d:0,auto_n:0,hope_n:0,old_m:0,ach_sum:0,ach_cnt:0,inp:0,retired:0};
+    var b=byStore[emp.store];
+    b.emps.push(emp);
+    if(isRetiring(emp)){b.retired++;return;}
+    var s=saves[emp.name]||{};
+    var ca=autoCalc(emp);
+    var ad=parseDelta(ca.delta)||0;
+    var hd=parseDelta(s.hDelta);if(hd===null)hd=ad;
+    b.auto_d+=ad;b.hope_d+=hd;
+    var ma=calcMig(emp,ca.rank,ca.grade);
+    var hR=s.hRank||ca.rank, hG=s.hGrade||ca.grade;
+    var mh=calcMig(emp,hR,hG);
+    var cert=emp.cert_allow||0;
+    b.old_m+=emp.base_pay+emp.rank_pay+45000+cert;
+    b.auto_n+=(ma?ma.nt:0)+cert;
+    b.hope_n+=(mh?mh.nt:0)+cert;
+    if(emp.achieve!=null){b.ach_sum+=emp.achieve;b.ach_cnt++;}
+    if(s.comment)b.inp++;
+  });
+  var keys=Object.keys(byStore).sort();
+  var rows="";
+  var tot={cnt:0,auto_d:0,hope_d:0,auto_n:0,hope_n:0,old_m:0,inp:0,target_cnt:0};
+  keys.forEach(function(k){
+    var b=byStore[k];
+    var target=b.emps.length-b.retired;if(target<=0)return;
+    var gap=b.hope_d-b.auto_d;
+    var diffM=b.hope_n-b.auto_n, diffY=diffM*14;
+    var avgA=b.ach_cnt>0?(b.ach_sum/b.ach_cnt*100).toFixed(1)+"%":"—";
+    var gapCls=gap>2?"color:#C62828;font-weight:700":gap<-2?"color:#1D9E75;font-weight:700":"color:#555";
+    var diffCls=diffM>0?"color:#C62828":diffM<0?"color:#1D9E75":"color:#555";
+    rows+="<tr><td style=\"font-weight:700\">"+k+"</td><td>"+target+(b.retired?"<span style=\"font-size:10px;color:#757575\"> (+退"+b.retired+")</span>":"")+"</td><td>"+avgA+"</td><td style=\"font-weight:600\">"+(b.auto_d>=0?"+":"")+b.auto_d+"</td><td style=\"font-weight:600\">"+(b.hope_d>=0?"+":"")+b.hope_d+"</td><td style=\""+gapCls+"\">"+(gap>=0?"+":"")+gap+"</td><td>"+yen(b.old_m)+"</td><td style=\"color:#1565C0\">"+yen(b.auto_n)+"</td><td style=\"color:#6A1B9A\">"+yen(b.hope_n)+"</td><td style=\""+diffCls+";font-weight:700\">"+(diffM>=0?"+":"")+yen(Math.abs(diffM)).replace("¥",diffM<0?"-¥":"¥")+"</td><td style=\""+diffCls+";font-weight:700\">"+(diffY>=0?"+":"")+yen(Math.abs(diffY)).replace("¥",diffY<0?"-¥":"¥")+"</td><td>"+b.inp+"/"+target+"</td></tr>";
+    tot.cnt+=target;tot.auto_d+=b.auto_d;tot.hope_d+=b.hope_d;tot.auto_n+=b.auto_n;tot.hope_n+=b.hope_n;tot.old_m+=b.old_m;tot.inp+=b.inp;
+  });
+  var tgap=tot.hope_d-tot.auto_d, tdM=tot.hope_n-tot.auto_n, tdY=tdM*14;
+  rows+="<tr style=\"background:#FFF9C4;font-weight:700;border-top:2px solid #F57F17\"><td>合計</td><td>"+tot.cnt+"</td><td>—</td><td>"+(tot.auto_d>=0?"+":"")+tot.auto_d+"</td><td>"+(tot.hope_d>=0?"+":"")+tot.hope_d+"</td><td>"+(tgap>=0?"+":"")+tgap+"</td><td>"+yen(tot.old_m)+"</td><td>"+yen(tot.auto_n)+"</td><td>"+yen(tot.hope_n)+"</td><td>"+(tdM>=0?"+":"")+yen(Math.abs(tdM)).replace("¥",tdM<0?"-¥":"¥")+"</td><td>"+(tdY>=0?"+":"")+yen(Math.abs(tdY)).replace("¥",tdY<0?"-¥":"¥")+"</td><td>"+tot.inp+"/"+tot.cnt+"</td></tr>";
+  document.getElementById("store-tb").innerHTML=rows;
 }
 
 function getStatus(n){const s=saves[n];if(!s)return 0;if(s.fDelta&&s.fDelta!=="")return 3;if(s.mDelta&&s.mDelta!=="")return 2;if(s.comment)return 1;return 0;}
