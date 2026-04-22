@@ -294,9 +294,10 @@ function aToDelta(a){
   if(p>=80)return -3;if(p>=75)return -4;return -5;
 }
 function dStr(d){if(d==null)return "保留";if(d===0)return "保留";return d>0?"+"+d:""+d;}
+function isRetiring(emp){return !!(emp&&emp.memo&&emp.memo.indexOf("退職")>=0);}
 function autoCalc(emp){
   const d=aToDelta(emp.achieve);
-  if(d==null)return{delta:"保留",rank:emp.rank37,grade:emp.grade37.includes("号")?emp.grade37:emp.grade37+"号",roleChanged:false};
+  if(d==null||isRetiring(emp))return{delta:"保留",rank:emp.rank37,grade:emp.grade37.includes("号")?emp.grade37:emp.grade37+"号",roleChanged:false};
   const idx=lIdx(emp.rank37,emp.grade37);
   if(idx<0)return{delta:dStr(d),rank:emp.rank37,grade:emp.grade37,roleChanged:false};
   const nl=lAt(idx+d);
@@ -411,7 +412,7 @@ function renderInput(){
   let h="<div class=\"card\" style=\"padding:0\"><div class=\"tw\"><table><thead><tr><th style=\"width:90px\">氏名</th><th style=\"width:70px\">役職</th><th style=\"width:75px\">37期等級</th><th style=\"width:65px\">達成率</th><th style=\"width:95px\">自動提案変動</th><th style=\"width:110px\">自動提案結果</th><th style=\"width:160px\">備考</th><th style=\"width:115px\">上長コメント</th><th style=\"width:80px\">状態</th></tr></thead><tbody>";
   emps.forEach(function(emp){
     const au=autoCalc(emp),s=saves[emp.name]||{},st=getStatus(emp.name);
-    const ab=emp.achieve==null?"<span class=\"badge bgray\">対象外</span>":emp.achieve>=1?"<span class=\"badge bg\">"+pct(emp.achieve)+"</span>":emp.achieve>=0.9?"<span class=\"badge bb\">"+pct(emp.achieve)+"</span>":emp.achieve>=0.7?"<span class=\"badge ba\">"+pct(emp.achieve)+"</span>":"<span class=\"badge br\">"+pct(emp.achieve)+"</span>";
+    const ab=(emp.achieve==null||isRetiring(emp))?"<span class=\"badge bgray\">対象外</span>":emp.achieve>=1?"<span class=\"badge bg\">"+pct(emp.achieve)+"</span>":emp.achieve>=0.9?"<span class=\"badge bb\">"+pct(emp.achieve)+"</span>":emp.achieve>=0.7?"<span class=\"badge ba\">"+pct(emp.achieve)+"</span>":"<span class=\"badge br\">"+pct(emp.achieve)+"</span>";
     const acCls=(au.delta.length>0&&au.delta[0]==="+")?"bg":(au.delta==="保留"?"bb":"br");
     const ac=au.roleChanged?"<span class=\"badge borange\">"+au.delta+"</span>":"<span class=\"badge "+acCls+"\">"+au.delta+"</span>";
     const ar=au.roleChanged?"<span style=\"font-size:11px;background:#FFF3E0;color:#E65100;padding:2px 5px;border-radius:4px\">★"+au.rank+" "+au.grade+"</span>":"<span style=\"font-size:12px\">"+au.rank+" "+au.grade+"</span>";
