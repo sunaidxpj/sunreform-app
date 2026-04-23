@@ -363,12 +363,23 @@ async function gasPost(endpoint,method,payload){
 }
 async function upsert(empNo,fields){
   const q=await gasGet("query=emp_no%3D%22"+empNo+"%22");
-  if(q.records&&q.records.length>0){
-    const id=q.records[0]["$id"].value;
-    await gasPost("record.json","PUT",{app:"329",id:id,record:fields});
-  } else {
-    fields.emp_no={value:empNo};
-    await gasPost("record.json","POST",{app:"329",record:fields});
+  const doSave=async function(f){
+    if(q.records&&q.records.length>0){
+      const id=q.records[0]["$id"].value;
+      await gasPost("record.json","PUT",{app:"329",id:id,record:f});
+    } else {
+      f.emp_no={value:empNo};
+      await gasPost("record.json","POST",{app:"329",record:f});
+    }
+  };
+  try{await doSave(fields);}
+  catch(e){
+    // Kintone にまだ追加されていない可能性がある任意フィールドを剥がして再試行
+    var stripped={};
+    var skip=["last_editor","edit_log","prev_salary","evaluations"];
+    Object.keys(fields).forEach(function(k){if(skip.indexOf(k)<0)stripped[k]=fields[k];});
+    try{await doSave(stripped);console.warn("upsert retry OK - missing fields:",skip,"orig err:",e.message);}
+    catch(e2){throw e2;}
   }
 }
 async function loadData(){
