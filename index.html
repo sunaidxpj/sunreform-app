@@ -717,7 +717,52 @@ function renderInput(){
   document.getElementById("prog-store").textContent=store?done+"/"+emps.length+"名":"";
   document.getElementById("prog-bar").style.width=emps.length?(done/emps.length*100)+"%":"0%";
   if(!store){document.getElementById("input-list").innerHTML="";return;}
-  let h="<div class=\"card\" style=\"padding:0\"><div class=\"tw\"><table><thead><tr><th style=\"width:90px\">氏名</th><th style=\"width:70px\">役職</th><th style=\"width:75px\">37期等級</th><th style=\"width:95px\">完工利益<br>結果</th><th style=\"width:95px\">完工利益<br>設定</th><th style=\"width:65px\">達成率</th><th style=\"width:95px\">自動提案変動</th><th style=\"width:110px\">自動提案結果</th><th style=\"width:160px\">備考</th><th style=\"width:115px\">上長コメント</th><th style=\"width:80px\">状態</th></tr></thead><tbody>";
+  // 店舗別サマリー (店舗別比較の自店分)
+  let summaryHtml="";
+  try{
+    var b={auto_d:0,hope_d:0,auto_n:0,hope_n:0,old_m:0,ach_sum:0,ach_cnt:0,inp:0,cnt:0,retired:0};
+    emps.forEach(function(emp){
+      if(emp.base_pay===0&&!isPart(emp))return;
+      if(isRetiring(emp)){b.retired++;return;}
+      b.cnt++;
+      var s=saves[emp.name]||{};
+      var ca=autoCalc(emp);
+      var ad=parseDelta(ca.delta)||0;
+      var hd=parseDelta(s.hDelta);if(hd===null)hd=ad;
+      b.auto_d+=ad;b.hope_d+=hd;
+      var ma=calcMig(emp,ca.rank,ca.grade);
+      var hR=s.hRank||ca.rank,hG=s.hGrade||ca.grade;
+      var mh=calcMig(emp,hR,hG);
+      var cert=emp.cert_allow||0;
+      b.old_m+=emp.base_pay+emp.rank_pay+45000+cert;
+      b.auto_n+=(ma?ma.nt:0)+cert;
+      b.hope_n+=(mh?mh.nt:0)+cert;
+      if(emp.achieve!=null){b.ach_sum+=emp.achieve;b.ach_cnt++;}
+      if(s.comment)b.inp++;
+    });
+    var gap=b.hope_d-b.auto_d,diffM=b.hope_n-b.auto_n,diffY=diffM*14;
+    var avgA=b.ach_cnt>0?(b.ach_sum/b.ach_cnt*100).toFixed(1)+"%":"—";
+    var gapCol=gap>2?"#C62828":gap<-2?"#1D9E75":"#555";
+    var diffCol=diffM>0?"#C62828":diffM<0?"#1D9E75":"#555";
+    summaryHtml="<div class=\"card\" style=\"background:linear-gradient(90deg,#E3F2FD,#FFF3E0);padding:12px 16px;margin-bottom:8px;font-size:13px\">"+
+      "<div style=\"font-weight:700;color:#1565C0;margin-bottom:6px\">📊 "+store+" の店舗集計 (自動 vs 店長希望)</div>"+
+      "<div style=\"display:flex;gap:20px;flex-wrap:wrap\">"+
+        "<div>人数 <b>"+b.cnt+"名</b>"+(b.retired?" <span style=\"font-size:11px;color:#757575\">(退職除外"+b.retired+")</span>":"")+"</div>"+
+        "<div>平均達成率 <b>"+avgA+"</b></div>"+
+        "<div>自動提案 <b>"+(b.auto_d>=0?"+":"")+b.auto_d+"</b></div>"+
+        "<div>店長希望 <b>"+(b.hope_d>=0?"+":"")+b.hope_d+"</b></div>"+
+        "<div>乖離 <b style=\"color:"+gapCol+"\">"+(gap>=0?"+":"")+gap+"</b></div>"+
+        "<div>旧月額 "+yen(b.old_m)+"</div>"+
+        "<div>→自動 <span style=\"color:#1565C0\">"+yen(b.auto_n)+"</span></div>"+
+        "<div>→希望 <span style=\"color:#6A1B9A\">"+yen(b.hope_n)+"</span></div>"+
+        "<div>差額/月 <b style=\"color:"+diffCol+"\">"+fmtSign(diffM)+"</b></div>"+
+        "<div>差額/年 <b style=\"color:"+diffCol+"\">"+fmtSign(diffY)+"</b></div>"+
+        "<div>入力済 <b>"+b.inp+"/"+b.cnt+"</b></div>"+
+      "</div>"+
+      "<div style=\"font-size:11px;color:#616161;margin-top:6px\">💡 店舗内でプラマイゼロに近づけてください。乖離が±3以上・差額/年が大きい場合は役員会で指摘が入ります。</div>"+
+      "</div>";
+  }catch(e){console.warn("store summary:",e);}
+  let h=summaryHtml+"<div class=\"card\" style=\"padding:0\"><div class=\"tw\"><table><thead><tr><th style=\"width:90px\">氏名</th><th style=\"width:70px\">役職</th><th style=\"width:75px\">37期等級</th><th style=\"width:95px\">完工利益<br>結果</th><th style=\"width:95px\">完工利益<br>設定</th><th style=\"width:65px\">達成率</th><th style=\"width:95px\">自動提案変動</th><th style=\"width:110px\">自動提案結果</th><th style=\"width:160px\">備考</th><th style=\"width:115px\">上長コメント</th><th style=\"width:80px\">状態</th></tr></thead><tbody>";
   emps.forEach(function(emp){
     const au=autoCalc(emp),s=saves[emp.name]||{},st=getStatus(emp.name);
     const ab=(emp.achieve==null||isRetiring(emp))?"<span class=\"badge bgray\">対象外</span>":emp.achieve>=1?"<span class=\"badge bg\">"+pct(emp.achieve)+"</span>":emp.achieve>=0.9?"<span class=\"badge bb\">"+pct(emp.achieve)+"</span>":emp.achieve>=0.7?"<span class=\"badge ba\">"+pct(emp.achieve)+"</span>":"<span class=\"badge br\">"+pct(emp.achieve)+"</span>";
@@ -835,25 +880,30 @@ function canAccess(area){
   var list=APP_CONFIG.acl[area]||[];
   return list.indexOf(curEmail())>=0;
 }
+const SETTINGS_EMP_NO="9999";
 async function loadSettings(){
+  // 1. localStorage から即反映
   try{
-    var res=await gasGet("query=emp_no%3D%22_SETTINGS%22&fields[0]=emp_no&fields[1]=memo");
+    var ls=localStorage.getItem("app_acl");
+    if(ls){var p=JSON.parse(ls);APP_CONFIG.acl.final=p.final||[];APP_CONFIG.acl.mgr=p.mgr||[];APP_CONFIG.acl.eval=p.eval||[];APP_CONFIG.acl.csv=p.csv||[];}
+  }catch(e){}
+  // 2. Kintone から上書き (あれば)
+  try{
+    var res=await gasGet("query=emp_no%3D%22"+SETTINGS_EMP_NO+"%22&fields[0]=emp_no&fields[1]=memo");
     if(res.records&&res.records.length>0){
       var m=res.records[0].memo?res.records[0].memo.value:"";
       if(m.trim().startsWith("{")){
         try{
           var parsed=JSON.parse(m);
-          APP_CONFIG.acl.final=parsed.final||[];
-          APP_CONFIG.acl.mgr=parsed.mgr||[];
-          APP_CONFIG.acl.eval=parsed.eval||[];
-          APP_CONFIG.acl.csv=parsed.csv||[];
+          APP_CONFIG.acl.final=parsed.final||APP_CONFIG.acl.final;
+          APP_CONFIG.acl.mgr=parsed.mgr||APP_CONFIG.acl.mgr;
+          APP_CONFIG.acl.eval=parsed.eval||APP_CONFIG.acl.eval;
+          APP_CONFIG.acl.csv=parsed.csv||APP_CONFIG.acl.csv;
+          localStorage.setItem("app_acl",m);
         }catch(e){console.warn("settings parse:",e);}
-      }else{
-        // 旧形式(カンマ区切り) → eval にのみ適用して移行
-        APP_CONFIG.acl.eval=m.split(/[,\n]/).map(function(s){return s.trim().toLowerCase();}).filter(function(s){return s;});
       }
     }
-  }catch(e){console.warn("loadSettings:",e);}
+  }catch(e){console.warn("loadSettings Kintone:",e);}
 }
 function parseEmails(raw){return raw.split(/[,\n]/).map(function(s){return s.trim().toLowerCase();}).filter(function(s){return s;});}
 function renderPerm(){
@@ -868,13 +918,20 @@ async function savePerm(){
   APP_CONFIG.acl.mgr=parseEmails(document.getElementById("perm-mgr").value);
   APP_CONFIG.acl.eval=parseEmails(document.getElementById("perm-eval").value);
   APP_CONFIG.acl.csv=parseEmails(document.getElementById("perm-csv").value);
+  var json=JSON.stringify(APP_CONFIG.acl);
+  // localStorageには必ず保存
+  try{localStorage.setItem("app_acl",json);}catch(e){}
+  // Kintoneにも保存試行 (失敗しても警告のみ)
+  var kintoneOk=false,kintoneErr="";
   try{
-    await upsert("_SETTINGS",{name:{value:"_SETTINGS"},memo:{value:JSON.stringify(APP_CONFIG.acl)},last_editor:{value:editorLabel()}});
-    setSyncStatus("ok","権限設定を保存");
-    document.getElementById("perm-msg").style.display="inline";
-    setTimeout(function(){document.getElementById("perm-msg").style.display="none";},2000);
-    renderPerm();
-  }catch(e){alert("保存エラー: "+e.message);}
+    await upsert(SETTINGS_EMP_NO,{name:{value:"_SETTINGS"},memo:{value:json},last_editor:{value:editorLabel()}});
+    kintoneOk=true;
+  }catch(e){kintoneErr=e.message;}
+  if(kintoneOk){setSyncStatus("ok","権限設定を保存(Kintone同期済)");}
+  else{setSyncStatus("err","ローカル保存のみ(Kintone: "+kintoneErr+")");}
+  document.getElementById("perm-msg").style.display="inline";
+  setTimeout(function(){document.getElementById("perm-msg").style.display="none";},2500);
+  renderPerm();
 }
 function editorLabel(){return currentUser?(currentUser.name||currentUser.username):"unknown";}
 function renderAudit(){
