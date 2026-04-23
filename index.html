@@ -271,13 +271,25 @@ tr:hover td{background:#FAFAFA}
 </div>
 <div id="v-perm" style="display:none">
   <div class="card">
-    <div class="ct">⚙️ 権限設定 (管理者のみ)</div>
-    <div style="font-size:12px;color:#757575;margin-bottom:14px">「🔒 マネ事前評価」タブに入力できるユーザーを指定します。サインインメールアドレスで判定。<br/>※管理者 (t.onishi@sunreform.jp) は常に許可されます。1行1メールアドレス。</div>
-    <div class="field">
-      <label>マネ事前評価 許可メール一覧</label>
-      <textarea id="perm-eval-emails" style="width:100%;padding:6px;min-height:180px;font-family:monospace;font-size:13px" placeholder="example1@sunreform.jp&#10;example2@sunreform.jp"></textarea>
+    <div class="ct">⚙️ 権限設定 (管理者・PW保護)</div>
+    <div style="font-size:12px;color:#757575;margin-bottom:14px">各ロックタブにアクセスできるユーザーをサインインメールアドレスで指定。1行1メール。<br/>※管理者 (t.onishi@sunreform.jp) は常に全タブ許可されます。空欄=管理者のみ。</div>
+    <div class="row">
+      <div class="field" style="flex:1"><label>🔒 ③役員会（確定）</label>
+        <textarea id="perm-final" style="width:100%;padding:6px;min-height:140px;font-family:monospace;font-size:12px" placeholder="yakuin1@sunreform.jp&#10;yakuin2@sunreform.jp"></textarea>
+      </div>
+      <div class="field" style="flex:1"><label>🔒 マネージャー査定</label>
+        <textarea id="perm-mgr" style="width:100%;padding:6px;min-height:140px;font-family:monospace;font-size:12px"></textarea>
+      </div>
     </div>
-    <div style="display:flex;gap:8px;align-items:center">
+    <div class="row">
+      <div class="field" style="flex:1"><label>🔒 マネ事前評価</label>
+        <textarea id="perm-eval" style="width:100%;padding:6px;min-height:140px;font-family:monospace;font-size:12px"></textarea>
+      </div>
+      <div class="field" style="flex:1"><label>🔒 CSV出力</label>
+        <textarea id="perm-csv" style="width:100%;padding:6px;min-height:140px;font-family:monospace;font-size:12px"></textarea>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;margin-top:10px">
       <button class="btn btn-p" onclick="savePerm()">保存</button>
       <span class="smsg" id="perm-msg">✓ 保存しました</span>
       <span id="perm-current" style="font-size:11px;color:#757575"></span>
@@ -322,8 +334,8 @@ tr:hover td{background:#FAFAFA}
 <div class="overlay" onclick="if(event.target===this)closePW()">
 <div class="mcard" style="max-width:340px;text-align:center;padding:36px">
   <div style="font-size:52px;margin-bottom:16px">🔒</div>
-  <div style="font-size:18px;font-weight:700;margin-bottom:6px">③役員会タブ</div>
-  <div style="font-size:13px;color:#757575;margin-bottom:24px">パスワードを入力してください</div>
+  <div style="font-size:18px;font-weight:700;margin-bottom:6px">権限設定</div>
+  <div style="font-size:13px;color:#757575;margin-bottom:24px">管理者用パスワードを入力してください</div>
   <input type="password" id="pw-input" style="text-align:center;font-size:22px;letter-spacing:8px;padding:12px;margin-bottom:12px" placeholder="----" maxlength="10" onkeydown="if(event.key===&#34;Enter&#34;)checkPW()">
   <button class="btn btn-blue" style="width:100%;padding:10px" onclick="checkPW()">解錠する</button>
   <div style="color:#E53935;font-size:12px;margin-top:8px;min-height:18px" id="pw-err"></div>
@@ -480,12 +492,14 @@ function calcMig(emp,cR,cG){
 }
 
 const PW="morie8386";
-let finalUnlocked=false,mgrUnlocked=false,evalUnlocked=false,pwTarget="final";
-function tryUnlock(){pwTarget="final";if(finalUnlocked){showTab("final");return;}_openPW();}
-function tryUnlockMgr(){pwTarget="mgr";if(mgrUnlocked){showTab("mgr");return;}_openPW();}
-function tryUnlockEval(){
-  if(!canInputEval()){alert("このタブへのアクセス権限がありません。管理者に問い合わせてください。\n\nログイン中: "+(currentUser?currentUser.username:"(未サインイン)"));return;}
-  pwTarget="eval";if(evalUnlocked){showTab("eval");return;}_openPW();
+let permUnlocked=false,pwTarget="perm";
+function denyAlert(area){alert("このタブへのアクセス権限がありません。\n管理者の「⚙️ 権限設定」で許可メールに追加が必要です。\n\nログイン中: "+(curEmail()||"(未サインイン)"));}
+function tryUnlock(){if(canAccess("final")){showTab("final");}else{denyAlert("final");}}
+function tryUnlockMgr(){if(canAccess("mgr")){showTab("mgr");}else{denyAlert("mgr");}}
+function tryUnlockEval(){if(canAccess("eval")){showTab("eval");}else{denyAlert("eval");}}
+function tryUnlockPerm(){
+  if(!isAdmin()){alert("権限設定は管理者のみ操作可能です。");return;}
+  pwTarget="perm";if(permUnlocked){showTab("perm");return;}_openPW();
 }
 function _openPW(){
   document.getElementById("pw-input").value="";
@@ -496,24 +510,12 @@ function _openPW(){
 function checkPW(){
   if(document.getElementById("pw-input").value===PW){
     document.getElementById("pw-modal").style.display="none";
-    if(pwTarget==="final"){
-      finalUnlocked=true;
-      const t=document.getElementById("tab-final");
+    if(pwTarget==="perm"){
+      permUnlocked=true;
+      const t=document.getElementById("tab-perm");
       t.classList.remove("locked");t.classList.add("unlocked");
-      t.textContent="🔓 ③役員会（確定）";
-      showTab("final");
-    } else if(pwTarget==="mgr"){
-      mgrUnlocked=true;
-      const t=document.getElementById("tab-mgr");
-      t.classList.remove("locked");t.classList.add("unlocked");
-      t.textContent="🔓 マネージャー査定";
-      showTab("mgr");
-    } else if(pwTarget==="eval"){
-      evalUnlocked=true;
-      const t=document.getElementById("tab-eval");
-      t.classList.remove("locked");t.classList.add("unlocked");
-      t.textContent="🔓 マネ事前評価";
-      showTab("eval");
+      t.textContent="🔓 ⚙️ 権限設定";
+      showTab("perm");
     }
   } else {
     document.getElementById("pw-err").textContent="パスワードが違います";
@@ -522,18 +524,13 @@ function checkPW(){
   }
 }
 function closePW(){document.getElementById("pw-modal").style.display="none";}
-function lockMgr(){
-  mgrUnlocked=false;
-  const t=document.getElementById("tab-mgr");
+function lockMgr(){showTab("input");}
+function lockFinal(){showTab("input");}
+function lockPerm(){
+  permUnlocked=false;
+  const t=document.getElementById("tab-perm");
   t.classList.remove("unlocked","on");t.classList.add("locked");
-  t.textContent="🔒 マネージャー査定";
-  showTab("input");
-}
-function lockFinal(){
-  finalUnlocked=false;
-  const t=document.getElementById("tab-final");
-  t.classList.remove("unlocked","on");t.classList.add("locked");
-  t.textContent="🔒 ③役員会（確定）";
+  t.textContent="⚙️ 権限設定";
   showTab("input");
 }
 
@@ -551,9 +548,10 @@ function init(){
 }
 
 function showTab(t){
-  if(t==="final"&&!finalUnlocked){tryUnlock();return;}
-  if(t==="mgr"&&!mgrUnlocked){tryUnlockMgr();return;}
-  if(t==="eval"&&!evalUnlocked){tryUnlockEval();return;}
+  if(t==="final"&&!canAccess("final")){denyAlert("final");return;}
+  if(t==="mgr"&&!canAccess("mgr")){denyAlert("mgr");return;}
+  if(t==="eval"&&!canAccess("eval")){denyAlert("eval");return;}
+  if(t==="perm"&&!permUnlocked){tryUnlockPerm();return;}
   ["input","meet","final","migrate","store","mgr","eval","audit","perm","admin"].forEach(function(id){
     document.getElementById("v-"+id).style.display=id===t?"block":"none";
     const tb=document.getElementById("tab-"+id);
@@ -829,33 +827,49 @@ function calcPreview(empName, rank, grade){
   return "<div style=\"font-size:11px;color:#0D47A1;margin-top:2px\">→"+m.tbl+" "+m.ng+" 新総額:"+yen(m.nt)+" <span class=\"badge "+dc+"\">"+( m.diff>=0?"+":"")+yen(m.diff)+"</span>"+ntStr+"</div>";
 }
 const saveTimer={};
-const APP_CONFIG={eval_allowed:[]};
-function canInputEval(){
+const APP_CONFIG={acl:{final:[],mgr:[],eval:[],csv:[]}};
+function curEmail(){return currentUser?(currentUser.username||"").toLowerCase():"";}
+function canAccess(area){
   if(isAdmin())return true;
   if(!currentUser)return false;
-  var em=(currentUser.username||"").toLowerCase();
-  return APP_CONFIG.eval_allowed.indexOf(em)>=0;
+  var list=APP_CONFIG.acl[area]||[];
+  return list.indexOf(curEmail())>=0;
 }
 async function loadSettings(){
   try{
     var res=await gasGet("query=emp_no%3D%22_SETTINGS%22&fields[0]=emp_no&fields[1]=memo");
     if(res.records&&res.records.length>0){
       var m=res.records[0].memo?res.records[0].memo.value:"";
-      APP_CONFIG.eval_allowed=m.split(/[,\n]/).map(function(s){return s.trim().toLowerCase();}).filter(function(s){return s;});
+      if(m.trim().startsWith("{")){
+        try{
+          var parsed=JSON.parse(m);
+          APP_CONFIG.acl.final=parsed.final||[];
+          APP_CONFIG.acl.mgr=parsed.mgr||[];
+          APP_CONFIG.acl.eval=parsed.eval||[];
+          APP_CONFIG.acl.csv=parsed.csv||[];
+        }catch(e){console.warn("settings parse:",e);}
+      }else{
+        // 旧形式(カンマ区切り) → eval にのみ適用して移行
+        APP_CONFIG.acl.eval=m.split(/[,\n]/).map(function(s){return s.trim().toLowerCase();}).filter(function(s){return s;});
+      }
     }
   }catch(e){console.warn("loadSettings:",e);}
 }
+function parseEmails(raw){return raw.split(/[,\n]/).map(function(s){return s.trim().toLowerCase();}).filter(function(s){return s;});}
 function renderPerm(){
-  var ta=document.getElementById("perm-eval-emails");
-  ta.value=APP_CONFIG.eval_allowed.join("\n");
-  document.getElementById("perm-current").textContent="現在 "+APP_CONFIG.eval_allowed.length+"名許可 / あなた: "+(currentUser?currentUser.username:"");
+  document.getElementById("perm-final").value=APP_CONFIG.acl.final.join("\n");
+  document.getElementById("perm-mgr").value=APP_CONFIG.acl.mgr.join("\n");
+  document.getElementById("perm-eval").value=APP_CONFIG.acl.eval.join("\n");
+  document.getElementById("perm-csv").value=APP_CONFIG.acl.csv.join("\n");
+  document.getElementById("perm-current").textContent="あなた: "+curEmail()+" (管理者: "+(isAdmin()?"はい":"いいえ")+")";
 }
 async function savePerm(){
-  var raw=document.getElementById("perm-eval-emails").value;
-  var list=raw.split(/[,\n]/).map(function(s){return s.trim().toLowerCase();}).filter(function(s){return s;});
-  APP_CONFIG.eval_allowed=list;
+  APP_CONFIG.acl.final=parseEmails(document.getElementById("perm-final").value);
+  APP_CONFIG.acl.mgr=parseEmails(document.getElementById("perm-mgr").value);
+  APP_CONFIG.acl.eval=parseEmails(document.getElementById("perm-eval").value);
+  APP_CONFIG.acl.csv=parseEmails(document.getElementById("perm-csv").value);
   try{
-    await upsert("_SETTINGS",{name:{value:"_SETTINGS"},memo:{value:list.join(",")},last_editor:{value:editorLabel()}});
+    await upsert("_SETTINGS",{name:{value:"_SETTINGS"},memo:{value:JSON.stringify(APP_CONFIG.acl)},last_editor:{value:editorLabel()}});
     setSyncStatus("ok","権限設定を保存");
     document.getElementById("perm-msg").style.display="inline";
     setTimeout(function(){document.getElementById("perm-msg").style.display="none";},2000);
@@ -988,9 +1002,8 @@ function updateImpact(){
 }
 
 function checkCSVAuth(){
-  const pw=prompt("CSV出力パスワードを入力してください");
-  if(pw===PW){exportCSV();}
-  else if(pw!==null){alert("パスワードが違います");}
+  if(canAccess("csv")){exportCSV();}
+  else{denyAlert("csv");}
 }
 function exportCSV(){
   const rows=[["区分","店舗","氏名","社員番号","37期役職","37期等級","達成率","自動提案","①希望変動","①希望役職","①希望等級","①コメント","②暫定変動","②暫定役職","②暫定等級","②メモ","③確定変動","③確定役職","③確定等級","③メモ","新テーブル","旧総額","新年齢給","新役職名","新役職手当","新等級","新等級手当","新総額","差額","来期利益設定","備考"]];
