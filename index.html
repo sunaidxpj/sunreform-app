@@ -127,6 +127,7 @@ tr:hover td{background:#FAFAFA}
   <div class="tab locked" id="tab-mgr" onclick="tryUnlockMgr()">🔒 マネージャー査定</div>
   <div class="tab locked" id="tab-eval" onclick="tryUnlockEval()">🔒 マネ事前評価</div>
   <div class="tab" id="tab-audit" onclick="showTab(&#34;audit&#34;)" style="display:none">📝 編集履歴</div>
+  <div class="tab" id="tab-perm" onclick="showTab(&#34;perm&#34;)" style="display:none">⚙️ 権限設定</div>
   <div class="tab" id="tab-admin" onclick="showTab(&#34;admin&#34;)">全社一覧</div>
 </div>
 <div class="content">
@@ -267,6 +268,21 @@ tr:hover td{background:#FAFAFA}
     <th style="width:150px">日時</th><th style="width:100px">氏名</th><th style="width:140px">編集者</th>
     <th style="width:100px">フィールド</th><th style="width:auto">値</th>
   </tr></thead><tbody id="audit-tb"></tbody></table></div></div>
+</div>
+<div id="v-perm" style="display:none">
+  <div class="card">
+    <div class="ct">⚙️ 権限設定 (管理者のみ)</div>
+    <div style="font-size:12px;color:#757575;margin-bottom:14px">「🔒 マネ事前評価」タブに入力できるユーザーを指定します。サインインメールアドレスで判定。<br/>※管理者 (t.onishi@sunreform.jp) は常に許可されます。1行1メールアドレス。</div>
+    <div class="field">
+      <label>マネ事前評価 許可メール一覧</label>
+      <textarea id="perm-eval-emails" style="width:100%;padding:6px;min-height:180px;font-family:monospace;font-size:13px" placeholder="example1@sunreform.jp&#10;example2@sunreform.jp"></textarea>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="btn btn-p" onclick="savePerm()">保存</button>
+      <span class="smsg" id="perm-msg">✓ 保存しました</span>
+      <span id="perm-current" style="font-size:11px;color:#757575"></span>
+    </div>
+  </div>
 </div>
 <div id="v-admin" style="display:none">
   <div class="metrics" id="adm-metrics"></div>
@@ -467,7 +483,10 @@ const PW="morie8386";
 let finalUnlocked=false,mgrUnlocked=false,evalUnlocked=false,pwTarget="final";
 function tryUnlock(){pwTarget="final";if(finalUnlocked){showTab("final");return;}_openPW();}
 function tryUnlockMgr(){pwTarget="mgr";if(mgrUnlocked){showTab("mgr");return;}_openPW();}
-function tryUnlockEval(){pwTarget="eval";if(evalUnlocked){showTab("eval");return;}_openPW();}
+function tryUnlockEval(){
+  if(!canInputEval()){alert("このタブへのアクセス権限がありません。管理者に問い合わせてください。\n\nログイン中: "+(currentUser?currentUser.username:"(未サインイン)"));return;}
+  pwTarget="eval";if(evalUnlocked){showTab("eval");return;}_openPW();
+}
 function _openPW(){
   document.getElementById("pw-input").value="";
   document.getElementById("pw-err").textContent="";
@@ -524,15 +543,18 @@ function init(){
   ["meet-sf","final-sf","mig-sf"].forEach(function(id){
     const el=document.getElementById(id);STORES.forEach(function(s){el.add(new Option(s,s));});
   });
-  if(isAdmin()){var au=document.getElementById("tab-audit");if(au)au.style.display="";}
-  updateProg();loadData();
+  if(isAdmin()){
+    var au=document.getElementById("tab-audit");if(au)au.style.display="";
+    var pm=document.getElementById("tab-perm");if(pm)pm.style.display="";
+  }
+  updateProg();loadSettings();loadData();
 }
 
 function showTab(t){
   if(t==="final"&&!finalUnlocked){tryUnlock();return;}
   if(t==="mgr"&&!mgrUnlocked){tryUnlockMgr();return;}
   if(t==="eval"&&!evalUnlocked){tryUnlockEval();return;}
-  ["input","meet","final","migrate","store","mgr","eval","audit","admin"].forEach(function(id){
+  ["input","meet","final","migrate","store","mgr","eval","audit","perm","admin"].forEach(function(id){
     document.getElementById("v-"+id).style.display=id===t?"block":"none";
     const tb=document.getElementById("tab-"+id);
     if(tb)tb.classList.toggle("on",id===t);
@@ -541,6 +563,7 @@ function showTab(t){
   if(t==="mgr")renderMgr();
   if(t==="eval")renderEval();
   if(t==="audit")renderAudit();
+  if(t==="perm")renderPerm();
   if(t==="meet")renderMeet();
   if(t==="final")renderFinal();
   if(t==="migrate")renderMigrate();
@@ -806,6 +829,39 @@ function calcPreview(empName, rank, grade){
   return "<div style=\"font-size:11px;color:#0D47A1;margin-top:2px\">→"+m.tbl+" "+m.ng+" 新総額:"+yen(m.nt)+" <span class=\"badge "+dc+"\">"+( m.diff>=0?"+":"")+yen(m.diff)+"</span>"+ntStr+"</div>";
 }
 const saveTimer={};
+const APP_CONFIG={eval_allowed:[]};
+function canInputEval(){
+  if(isAdmin())return true;
+  if(!currentUser)return false;
+  var em=(currentUser.username||"").toLowerCase();
+  return APP_CONFIG.eval_allowed.indexOf(em)>=0;
+}
+async function loadSettings(){
+  try{
+    var res=await gasGet("query=emp_no%3D%22_SETTINGS%22&fields[0]=emp_no&fields[1]=memo");
+    if(res.records&&res.records.length>0){
+      var m=res.records[0].memo?res.records[0].memo.value:"";
+      APP_CONFIG.eval_allowed=m.split(/[,\n]/).map(function(s){return s.trim().toLowerCase();}).filter(function(s){return s;});
+    }
+  }catch(e){console.warn("loadSettings:",e);}
+}
+function renderPerm(){
+  var ta=document.getElementById("perm-eval-emails");
+  ta.value=APP_CONFIG.eval_allowed.join("\n");
+  document.getElementById("perm-current").textContent="現在 "+APP_CONFIG.eval_allowed.length+"名許可 / あなた: "+(currentUser?currentUser.username:"");
+}
+async function savePerm(){
+  var raw=document.getElementById("perm-eval-emails").value;
+  var list=raw.split(/[,\n]/).map(function(s){return s.trim().toLowerCase();}).filter(function(s){return s;});
+  APP_CONFIG.eval_allowed=list;
+  try{
+    await upsert("_SETTINGS",{name:{value:"_SETTINGS"},memo:{value:list.join(",")},last_editor:{value:editorLabel()}});
+    setSyncStatus("ok","権限設定を保存");
+    document.getElementById("perm-msg").style.display="inline";
+    setTimeout(function(){document.getElementById("perm-msg").style.display="none";},2000);
+    renderPerm();
+  }catch(e){alert("保存エラー: "+e.message);}
+}
 function editorLabel(){return currentUser?(currentUser.name||currentUser.username):"unknown";}
 function renderAudit(){
   var all=[];
