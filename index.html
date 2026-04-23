@@ -149,6 +149,7 @@ tr:hover td{background:#FAFAFA}
       <select id="meet-ff" onchange="renderMeet()"><option value="">全員</option><option value="入力済">①入力済のみ</option><option value="役職変更">役職変更あり</option></select>
     </div>
   </div>
+  <div id="meet-summary"></div>
   <div class="card" style="padding:0"><div class="tw"><table><thead><tr>
     <th style="width:90px">氏名</th><th style="width:75px">店舗</th><th style="width:85px">37期等級</th>
     <th style="width:65px">達成率</th><th style="width:95px">自動提案</th><th style="width:95px">①上長希望</th>
@@ -890,6 +891,63 @@ function renderMeet(){
   let emps=(sf?EMPS.filter(function(e){return e.store===sf;}):EMPS).filter(function(e){return !e.is_mgr;});
   if(ff==="入力済")emps=emps.filter(function(e){return saves[e.name]&&saves[e.name].comment;});
   if(ff==="役職変更")emps=emps.filter(function(e){return autoCalc(e).roleChanged;});
+  // 店舗/フィルタ集計
+  try{
+    var b={auto_d:0,hope_d:0,meet_d:0,auto_n:0,hope_n:0,meet_n:0,old_m:0,ach_sum:0,ach_cnt:0,inp1:0,inp2:0,cnt:0,retired:0};
+    emps.forEach(function(emp){
+      if(emp.base_pay===0&&!isPart(emp))return;
+      if(isRetiring(emp)){b.retired++;return;}
+      b.cnt++;
+      var s=saves[emp.name]||{};
+      var ca=autoCalc(emp);
+      var ad=parseDelta(ca.delta)||0;
+      var hd=parseDelta(s.hDelta);if(hd===null)hd=ad;
+      var md=parseDelta(s.mDelta);if(md===null)md=hd;
+      b.auto_d+=ad;b.hope_d+=hd;b.meet_d+=md;
+      var ma=calcMig(emp,ca.rank,ca.grade);
+      var hR=s.hRank||ca.rank,hG=s.hGrade||ca.grade;
+      var mh=calcMig(emp,hR,hG);
+      var mR=s.mRank||hR,mG=s.mGrade||hG;
+      var mm=calcMig(emp,mR,mG);
+      var cert=emp.cert_allow||0;
+      b.old_m+=emp.base_pay+emp.rank_pay+45000+cert;
+      b.auto_n+=(ma?ma.nt:0)+cert;
+      b.hope_n+=(mh?mh.nt:0)+cert;
+      b.meet_n+=(mm?mm.nt:0)+cert;
+      if(emp.achieve!=null){b.ach_sum+=emp.achieve;b.ach_cnt++;}
+      if(s.comment)b.inp1++;
+      if(s.mDelta)b.inp2++;
+    });
+    var avgA=b.ach_cnt>0?(b.ach_sum/b.ach_cnt*100).toFixed(1)+"%":"—";
+    var gapMA=b.meet_d-b.auto_d, gapMH=b.meet_d-b.hope_d;
+    var diffM=b.meet_n-b.old_m, diffY=diffM*14;
+    var gMACol=gapMA>2?"#C62828":gapMA<-2?"#1D9E75":"#555";
+    var gMHCol=gapMH>2?"#C62828":gapMH<-2?"#1D9E75":"#555";
+    var diffCol=diffM>0?"#C62828":diffM<0?"#1D9E75":"#555";
+    var scopeLabel=sf||"全店舗";
+    document.getElementById("meet-summary").innerHTML=
+      "<div class=\"card\" style=\"background:linear-gradient(90deg,#FFF3E0,#E8F5E9);padding:12px 16px;margin-bottom:8px;font-size:13px\">"+
+      "<div style=\"font-weight:700;color:#1565C0;margin-bottom:6px\">📊 "+scopeLabel+" の会議集計 (自動提案 / 店長希望 / 暫定)</div>"+
+      "<div style=\"display:flex;gap:18px;flex-wrap:wrap\">"+
+        "<div>人数 <b>"+b.cnt+"名</b>"+(b.retired?"<span style=\"font-size:11px;color:#757575\"> (退職除外"+b.retired+")</span>":"")+"</div>"+
+        "<div>平均達成率 <b>"+avgA+"</b></div>"+
+        "<div>自動 <b>"+(b.auto_d>=0?"+":"")+b.auto_d+"</b></div>"+
+        "<div>店長希望 <b>"+(b.hope_d>=0?"+":"")+b.hope_d+"</b></div>"+
+        "<div>②暫定 <b style=\"color:#E65100\">"+(b.meet_d>=0?"+":"")+b.meet_d+"</b></div>"+
+        "<div>暫定vs自動 <b style=\"color:"+gMACol+"\">"+(gapMA>=0?"+":"")+gapMA+"</b></div>"+
+        "<div>暫定vs希望 <b style=\"color:"+gMHCol+"\">"+(gapMH>=0?"+":"")+gapMH+"</b></div>"+
+      "</div>"+
+      "<div style=\"display:flex;gap:18px;flex-wrap:wrap;margin-top:4px;padding-top:4px;border-top:1px dashed #FFCC80\">"+
+        "<div>旧月額 "+yen(b.old_m)+"</div>"+
+        "<div>自動 <span style=\"color:#1565C0\">"+yen(b.auto_n)+"</span></div>"+
+        "<div>希望 <span style=\"color:#6A1B9A\">"+yen(b.hope_n)+"</span></div>"+
+        "<div>暫定 <b style=\"color:#E65100\">"+yen(b.meet_n)+"</b></div>"+
+        "<div>暫定差/月 <b style=\"color:"+diffCol+"\">"+fmtSign(diffM)+"</b></div>"+
+        "<div>暫定差/年(×14) <b style=\"color:"+diffCol+"\">"+fmtSign(diffY)+"</b></div>"+
+        "<div>①入力 "+b.inp1+"/"+b.cnt+" / ②入力 "+b.inp2+"/"+b.cnt+"</div>"+
+      "</div>"+
+      "</div>";
+  }catch(e){console.warn("meet summary:",e);document.getElementById("meet-summary").innerHTML="";}
   document.getElementById("meet-tb").innerHTML=emps.map(function(emp){
     const au=autoCalc(emp),s=saves[emp.name]||{},hs=s.hDelta?s.hDelta+"→"+s.hRank+" "+s.hGrade:"—";
     const rOpts="<option value=\"\">--</option>"+RANKS_OLD.map(function(r){var mDef=s.mRank||s.hRank||"";return "<option"+(mDef===r?" selected":"")+">"+r+"</option>";}).join("");
