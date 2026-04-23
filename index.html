@@ -221,8 +221,8 @@ tr:hover td{background:#FAFAFA}
     <div class="ct">🔒 マネージャー事前評価</div>
     <div style="font-size:12px;color:#757575;margin-bottom:10px">関わりのある複数の人がマネージャー18名を評価。同じ評価者が再入力すると上書きされます。役員会の年俸決定時の参考資料として活用。</div>
     <div class="row">
-      <div class="field" style="flex:1"><label>評価者名 <span style="color:#E53935">*</span></label>
-        <input type="text" id="eval-name" placeholder="例: 大西・江川・坂本・小西・内勤A" style="width:100%;padding:6px">
+      <div class="field" style="flex:1"><label>評価者 (ログイン中ユーザー自動)</label>
+        <input type="text" id="eval-name" readonly style="width:100%;padding:6px;background:#F5F5F5;color:#424242">
       </div>
       <div class="field" style="flex:1"><label>対象マネージャー <span style="color:#E53935">*</span></label>
         <select id="eval-target" style="width:100%;padding:6px"><option value="">-- 選択 --</option></select>
@@ -374,7 +374,10 @@ async function upsert(empNo,fields){
 async function loadData(){
   setSyncStatus("loading","キントーンから取得中...");
   try{
-    const data=await gasGet("totalCount=true&query=order+by+emp_no+asc&fields[0]=emp_no&fields[1]=hope_delta&fields[2]=hope_rank&fields[3]=hope_grade&fields[4]=comment&fields[5]=meet_delta&fields[6]=meet_rank&fields[7]=meet_grade&fields[8]=meet_memo&fields[9]=final_delta&fields[10]=final_rank&fields[11]=final_grade&fields[12]=final_memo&fields[13]=cert_allow&fields[14]=cert_deduct&fields[15]=dist_rate&fields[16]=month_ratio&fields[17]=base_pay&fields[18]=rank_pay&fields[19]=memo&fields[20]=evaluations&fields[21]=last_editor&fields[22]=edit_log");
+    const mgrOK=canAccess("mgr");
+    var fieldsQ="totalCount=true&query=order+by+emp_no+asc&fields[0]=emp_no&fields[1]=hope_delta&fields[2]=hope_rank&fields[3]=hope_grade&fields[4]=comment&fields[5]=meet_delta&fields[6]=meet_rank&fields[7]=meet_grade&fields[8]=meet_memo&fields[9]=final_delta&fields[10]=final_rank&fields[11]=final_grade&fields[12]=final_memo&fields[13]=cert_allow&fields[14]=cert_deduct&fields[15]=dist_rate&fields[16]=month_ratio&fields[17]=base_pay&fields[18]=rank_pay&fields[19]=memo&fields[20]=evaluations&fields[21]=last_editor&fields[22]=edit_log";
+    if(mgrOK)fieldsQ+="&fields[23]=prev_salary";
+    const data=await gasGet(fieldsQ);
     data.records.forEach(function(rec){
       const empNo=rec.emp_no?rec.emp_no.value:"";
       const emp=EMPS.find(function(e){return e.emp_no===empNo;});
@@ -390,10 +393,14 @@ async function loadData(){
       if(fv("meet_rank"))saves[n].mRank=fv("meet_rank");
       if(fv("meet_grade"))saves[n].mGrade=fv("meet_grade");
       if(fv("meet_memo"))saves[n].mMemo=fv("meet_memo");
-      if(fv("final_delta"))saves[n].fDelta=fv("final_delta");
-      if(fv("final_rank"))saves[n].fRank=fv("final_rank");
-      if(fv("final_grade"))saves[n].fGrade=fv("final_grade");
-      if(fv("final_memo"))saves[n].fMemo=fv("final_memo");
+      // 管理職の final_* は年俸データなので canAccess("mgr") の場合のみ反映
+      if(!isMgr(emp)||mgrOK){
+        if(fv("final_delta"))saves[n].fDelta=fv("final_delta");
+        if(fv("final_rank"))saves[n].fRank=fv("final_rank");
+        if(fv("final_grade"))saves[n].fGrade=fv("final_grade");
+        if(fv("final_memo"))saves[n].fMemo=fv("final_memo");
+      }
+      if(isMgr(emp)&&mgrOK&&fv("prev_salary"))emp.prev_salary=Number(fv("prev_salary"))||0;
       // 給与パラメータをEMPS配列に反映（キントーンが最新データ）
       if(fv("cert_allow"))emp.cert_allow=Number(fv("cert_allow"))||0;
       if(fv("cert_deduct"))emp.cert_deduct=Number(fv("cert_deduct"))||0;
@@ -657,6 +664,8 @@ async function submitEval(){
 }
 function renderEval(){
   fillEvalTargetSelect();
+  var nameInput=document.getElementById("eval-name");
+  if(nameInput)nameInput.value=editorLabel();
   var rows="";
   EMPS.filter(function(e){return e.is_mgr;}).forEach(function(emp){
     var arr=parseEvals(emp.evaluations||"");
@@ -691,7 +700,7 @@ function renderMgr(){
     var evalAvg=evalArr.length?(evalArr.reduce(function(s,e){return s+e.score;},0)/evalArr.length).toFixed(1):"—";
     var evalCls=evalArr.length?(evalAvg>=4?"color:#1D9E75":evalAvg>=3?"color:#1565C0":"color:#C62828"):"color:#BDBDBD";
     var evalSum=evalArr.length?"<div style=\"font-size:11px;padding:4px;background:#F5F5F5;border-radius:4px\"><b style=\""+evalCls+"\">★"+evalAvg+"</b> ("+evalArr.length+"件): "+evalArr.map(function(e){return e.name+"="+e.score;}).join(" / ")+"</div>":"<span style=\"font-size:10px;color:#BDBDBD\">事前評価なし</span>";
-    rows+="<tr><td style=\"font-weight:700\">"+emp.name+"</td><td style=\"font-size:11px\">"+emp.store+"</td><td>"+achStr+"</td><td style=\"font-size:11px;color:#757575\">"+(prevSal?yen(prevSal):"—")+"</td><td>"+yen(emp.prev_target)+"</td><td><input type=\"text\" value=\""+(salVal===""?"":numFmt(salVal))+"\" onchange=\"svK('"+emp.emp_no+"','"+emp.name+"','fDelta','final_delta',(numParse(this.value)||0).toString());this.value=numFmt(numParse(this.value))\" style=\"width:100%;font-size:12px;padding:3px;text-align:right\" placeholder=\"例 12,000,000\"></td><td><input type=\"text\" value=\""+numFmt(tgtVal)+"\" onchange=\"svK('"+emp.emp_no+"','"+emp.name+"','fRank','final_rank',(numParse(this.value)||0).toString());this.value=numFmt(numParse(this.value))\" style=\"width:100%;font-size:12px;padding:3px;text-align:right\" placeholder=\"例 12,800,000\"></td><td><input type=\"text\" value=\""+(s.fMemo||"").replace(/\"/g,'&quot;')+"\" onchange=\"svK('"+emp.emp_no+"','"+emp.name+"','fMemo','final_memo',this.value)\" style=\"font-size:11px;padding:3px;width:100%\" placeholder=\"役員決定メモ\"></td><td>"+evalSum+"</td><td><input type=\"text\" value=\""+(emp.memo||"").replace(/\"/g,'&quot;')+"\" onchange=\"svMemo('"+emp.emp_no+"','"+emp.name+"',this.value)\" style=\"font-size:11px;padding:3px;width:100%;color:#6A1B9A\" placeholder=\"備考\"></td><td>"+stHtml+"</td></tr>";
+    rows+="<tr><td style=\"font-weight:700\">"+emp.name+"</td><td style=\"font-size:11px\">"+emp.store+"</td><td>"+achStr+"</td><td><input type=\"text\" value=\""+(prevSal?numFmt(prevSal):"")+"\" onchange=\"saveEmpField('"+emp.emp_no+"','"+emp.name+"','prev_salary','prev_salary',(numParse(this.value)||0));this.value=numFmt(numParse(this.value))\" style=\"width:100%;font-size:12px;padding:3px;text-align:right;color:#6A1B9A\" placeholder=\"37期年俸\"></td><td>"+yen(emp.prev_target)+"</td><td><input type=\"text\" value=\""+(salVal===""?"":numFmt(salVal))+"\" onchange=\"svK('"+emp.emp_no+"','"+emp.name+"','fDelta','final_delta',(numParse(this.value)||0).toString());this.value=numFmt(numParse(this.value))\" style=\"width:100%;font-size:12px;padding:3px;text-align:right\" placeholder=\"例 12,000,000\"></td><td><input type=\"text\" value=\""+numFmt(tgtVal)+"\" onchange=\"svK('"+emp.emp_no+"','"+emp.name+"','fRank','final_rank',(numParse(this.value)||0).toString());this.value=numFmt(numParse(this.value))\" style=\"width:100%;font-size:12px;padding:3px;text-align:right\" placeholder=\"例 12,800,000\"></td><td><input type=\"text\" value=\""+(s.fMemo||"").replace(/\"/g,'&quot;')+"\" onchange=\"svK('"+emp.emp_no+"','"+emp.name+"','fMemo','final_memo',this.value)\" style=\"font-size:11px;padding:3px;width:100%\" placeholder=\"役員決定メモ\"></td><td>"+evalSum+"</td><td><input type=\"text\" value=\""+(emp.memo||"").replace(/\"/g,'&quot;')+"\" onchange=\"svMemo('"+emp.emp_no+"','"+emp.name+"',this.value)\" style=\"font-size:11px;padding:3px;width:100%;color:#6A1B9A\" placeholder=\"備考\"></td><td>"+stHtml+"</td></tr>";
     if(curSal)tot.salary+=curSal;
     if(curTgt)tot.tgt+=curTgt;
     tot.cnt++;if(st>=2)tot.inp++;
@@ -929,6 +938,20 @@ async function savePerm(){
   renderPerm();
 }
 function editorLabel(){return currentUser?(currentUser.name||currentUser.username):"unknown";}
+async function saveEmpField(empNo,name,prop,kField,val){
+  const emp=EMPS.find(function(e){return e.name===name;});
+  if(emp)emp[prop]=val;
+  updateImpact();
+  var logLine=appendEditLog(emp,kField,val);
+  clearTimeout(saveTimer["emp_"+empNo+"_"+kField]);
+  saveTimer["emp_"+empNo+"_"+kField]=setTimeout(async function(){
+    try{
+      var fields={name:{value:name},last_editor:{value:editorLabel()},edit_log:{value:logLine}};
+      fields[kField]={value:val};
+      await upsert(empNo,fields);setSyncStatus("ok","保存済み by "+editorLabel());
+    }catch(e){setSyncStatus("err","保存エラー: "+e.message);}
+  },800);
+}
 function renderAudit(){
   var all=[];
   EMPS.forEach(function(emp){
