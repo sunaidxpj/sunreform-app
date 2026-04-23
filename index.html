@@ -552,7 +552,7 @@ function renderInput(){
   document.getElementById("prog-store").textContent=store?done+"/"+emps.length+"名":"";
   document.getElementById("prog-bar").style.width=emps.length?(done/emps.length*100)+"%":"0%";
   if(!store){document.getElementById("input-list").innerHTML="";return;}
-  let h="<div class=\"card\" style=\"padding:0\"><div class=\"tw\"><table><thead><tr><th style=\"width:90px\">氏名</th><th style=\"width:70px\">役職</th><th style=\"width:75px\">37期等級</th><th style=\"width:65px\">達成率</th><th style=\"width:95px\">自動提案変動</th><th style=\"width:110px\">自動提案結果</th><th style=\"width:160px\">備考</th><th style=\"width:115px\">上長コメント</th><th style=\"width:80px\">状態</th></tr></thead><tbody>";
+  let h="<div class=\"card\" style=\"padding:0\"><div class=\"tw\"><table><thead><tr><th style=\"width:90px\">氏名</th><th style=\"width:70px\">役職</th><th style=\"width:75px\">37期等級</th><th style=\"width:95px\">完工利益<br>結果</th><th style=\"width:95px\">完工利益<br>設定</th><th style=\"width:65px\">達成率</th><th style=\"width:95px\">自動提案変動</th><th style=\"width:110px\">自動提案結果</th><th style=\"width:160px\">備考</th><th style=\"width:115px\">上長コメント</th><th style=\"width:80px\">状態</th></tr></thead><tbody>";
   emps.forEach(function(emp){
     const au=autoCalc(emp),s=saves[emp.name]||{},st=getStatus(emp.name);
     const ab=(emp.achieve==null||isRetiring(emp))?"<span class=\"badge bgray\">対象外</span>":emp.achieve>=1?"<span class=\"badge bg\">"+pct(emp.achieve)+"</span>":emp.achieve>=0.9?"<span class=\"badge bb\">"+pct(emp.achieve)+"</span>":emp.achieve>=0.7?"<span class=\"badge ba\">"+pct(emp.achieve)+"</span>":"<span class=\"badge br\">"+pct(emp.achieve)+"</span>";
@@ -560,7 +560,9 @@ function renderInput(){
     const ac=au.roleChanged?"<span class=\"badge borange\">"+au.delta+"</span>":"<span class=\"badge "+acCls+"\">"+au.delta+"</span>";
     const ar=au.roleChanged?"<span style=\"font-size:11px;background:#FFF3E0;color:#E65100;padding:2px 5px;border-radius:4px\">★"+au.rank+" "+au.grade+"</span>":"<span style=\"font-size:12px\">"+au.rank+" "+au.grade+"</span>";
     const inp=s.comment?"<span style=\"font-size:11px;color:#757575\">"+(s.hDelta||"")+" "+s.comment.slice(0,14)+"...</span>":"<span style=\"color:#BDBDBD;font-size:12px\">未入力</span>";
-    h+="<tr style=\"cursor:pointer\" onclick=\"openM('"+emp.name+"')\"><td style=\"font-weight:700\">"+emp.name+"</td><td>"+emp.rank37+"</td><td>"+emp.grade37+"</td><td>"+ab+"</td><td>"+ac+"</td><td>"+ar+"</td><td onclick=\"event.stopPropagation()\"><input type=\"text\" value=\""+(emp.memo||"").replace(/\"/g,'&quot;')+"\" onchange=\"svMemo('"+emp.emp_no+"','"+emp.name+"',this.value)\" style=\"font-size:11px;padding:3px;width:100%;color:#6A1B9A\" placeholder=\"備考\"></td><td>"+inp+"</td><td>"+stBadge(st)+"</td></tr>";
+    const resCell=emp.result!=null?"<td style=\"font-size:11px;text-align:right;font-family:monospace\">"+yen(emp.result)+"</td>":"<td style=\"color:#BDBDBD;text-align:center\">—</td>";
+    const tgtCell=emp.target!=null?"<td style=\"font-size:11px;text-align:right;font-family:monospace\">"+yen(emp.target)+"</td>":"<td style=\"color:#BDBDBD;text-align:center\">—</td>";
+    h+="<tr style=\"cursor:pointer\" onclick=\"openM('"+emp.name+"')\"><td style=\"font-weight:700\">"+emp.name+"</td><td>"+emp.rank37+"</td><td>"+emp.grade37+"</td>"+resCell+tgtCell+"<td>"+ab+"</td><td>"+ac+"</td><td>"+ar+"</td><td onclick=\"event.stopPropagation()\"><input type=\"text\" value=\""+(emp.memo||"").replace(/\"/g,'&quot;')+"\" onchange=\"svMemo('"+emp.emp_no+"','"+emp.name+"',this.value)\" style=\"font-size:11px;padding:3px;width:100%;color:#6A1B9A\" placeholder=\"備考\"></td><td>"+inp+"</td><td>"+stBadge(st)+"</td></tr>";
   });
   h+="</tbody></table></div></div>";
   document.getElementById("input-list").innerHTML=h;
