@@ -219,7 +219,7 @@ tr:hover td{background:#FAFAFA}
 <div id="v-eval" style="display:none">
   <div class="card">
     <div class="ct">🔒 マネージャー事前評価</div>
-    <div style="font-size:12px;color:#757575;margin-bottom:10px">関わりのある複数の人がマネージャー18名を評価。同じ評価者が再入力すると上書きされます。役員会の年俸決定時の参考資料として活用。</div>
+    <div style="font-size:12px;color:#757575;margin-bottom:10px">関わりのある複数の人がマネージャー18名を評価。同じ評価者が再入力すると上書きされます。役員会の年俸決定時の参考資料として活用。<br/><span style="color:#6A1B9A">🔐 プライバシー: 自分の評価詳細は自分だけが見えます (集計件数・平均点は共有)。役員・管理者は全員の評価を確認できます。</span></div>
     <div class="row">
       <div class="field" style="flex:1"><label>評価者 (ログイン中ユーザー自動)</label>
         <input type="text" id="eval-name" readonly style="width:100%;padding:6px;background:#F5F5F5;color:#424242">
@@ -677,15 +677,24 @@ function renderEval(){
   fillEvalTargetSelect();
   var nameInput=document.getElementById("eval-name");
   if(nameInput)nameInput.value=editorLabel();
+  var myLabel=editorLabel();
+  var admin=isAdmin();
   var rows="";
   EMPS.filter(function(e){return e.is_mgr;}).forEach(function(emp){
     var arr=parseEvals(emp.evaluations||"");
     var avg=arr.length?(arr.reduce(function(s,e){return s+e.score;},0)/arr.length).toFixed(1):"—";
     var avgCls=arr.length?(avg>=4?"color:#1D9E75;font-weight:700":avg>=3?"color:#1565C0;font-weight:700":"color:#C62828;font-weight:700"):"color:#BDBDBD";
-    var details=arr.length?arr.map(function(e){
-      var sc=e.score>=4?"bg":e.score>=3?"bb":"br";
-      return "<div style=\"padding:3px 0;border-bottom:1px dashed #EEE;font-size:12px\"><b>"+e.name+"</b> <span class=\"badge "+sc+"\">"+e.score+"</span> <span style=\"color:#424242\">"+(e.comment||"(コメント無し)")+"</span> <span style=\"color:#BDBDBD;font-size:10px\">"+(e.date||"")+"</span></div>";
-    }).join(""):"<span style=\"color:#BDBDBD;font-size:12px\">未評価</span>";
+    // 管理者は全員、それ以外は自分の評価だけ見える
+    var visible=admin?arr:arr.filter(function(e){return e.name===myLabel;});
+    var details;
+    if(visible.length){
+      details=visible.map(function(e){
+        var sc=e.score>=4?"bg":e.score>=3?"bb":"br";
+        return "<div style=\"padding:3px 0;border-bottom:1px dashed #EEE;font-size:12px\"><b>"+e.name+"</b> <span class=\"badge "+sc+"\">"+e.score+"</span> <span style=\"color:#424242\">"+(e.comment||"(コメント無し)")+"</span> <span style=\"color:#BDBDBD;font-size:10px\">"+(e.date||"")+"</span></div>";
+      }).join("");
+    }else{
+      details=admin?"<span style=\"color:#BDBDBD;font-size:12px\">未評価</span>":"<span style=\"color:#BDBDBD;font-size:12px\">あなたは未入力 (上のフォームから入力してください)</span>";
+    }
     rows+="<tr><td style=\"font-weight:700\">"+emp.name+"</td><td style=\"font-size:11px\">"+emp.store+"</td><td>"+arr.length+"件</td><td style=\""+avgCls+";font-size:15px\">"+avg+"</td><td>"+details+"</td></tr>";
   });
   document.getElementById("eval-tb").innerHTML=rows;
