@@ -167,6 +167,7 @@ tr:hover td{background:#FAFAFA}
     </div>
   </div>
   <div class="card"><div class="fr"><select id="final-sf" onchange="renderFinal()"><option value="">全店舗</option></select></div></div>
+  <div id="final-summary"></div>
   <div class="card" style="padding:0"><div class="tw"><table><thead><tr>
     <th style="width:90px">氏名</th><th style="width:75px">店舗</th><th style="width:85px">37期等級</th>
     <th style="width:65px">達成率</th><th style="width:95px">②暫定</th>
@@ -959,6 +960,70 @@ function renderMeet(){
 function renderFinal(){
   const sf=document.getElementById("final-sf").value;
   let emps=(sf?EMPS.filter(function(e){return e.store===sf;}):EMPS).filter(function(e){return !e.is_mgr;});
+  // 役員会集計
+  try{
+    var b={auto_d:0,hope_d:0,meet_d:0,final_d:0,auto_n:0,hope_n:0,meet_n:0,final_n:0,old_m:0,ach_sum:0,ach_cnt:0,inp3:0,cnt:0,retired:0,tgt:0,jinji:0};
+    emps.forEach(function(emp){
+      if(emp.base_pay===0&&!isPart(emp))return;
+      if(isRetiring(emp)){b.retired++;return;}
+      b.cnt++;
+      var s=saves[emp.name]||{};
+      var ca=autoCalc(emp);
+      var ad=parseDelta(ca.delta)||0;
+      var hd=parseDelta(s.hDelta);if(hd===null)hd=ad;
+      var md=parseDelta(s.mDelta);if(md===null)md=hd;
+      var fd=parseDelta(s.fDelta);if(fd===null)fd=md;
+      b.auto_d+=ad;b.hope_d+=hd;b.meet_d+=md;b.final_d+=fd;
+      var ma=calcMig(emp,ca.rank,ca.grade);
+      var hR=s.hRank||ca.rank,hG=s.hGrade||ca.grade;var mh=calcMig(emp,hR,hG);
+      var mR=s.mRank||hR,mG=s.mGrade||hG;var mm=calcMig(emp,mR,mG);
+      var fR=s.fRank||mR,fG=s.fGrade||mG;var mf=calcMig(emp,fR,fG);
+      var cert=emp.cert_allow||0,cd=emp.cert_deduct||0,mr=emp.month_ratio||1.0;
+      b.old_m+=emp.base_pay+emp.rank_pay+45000+cert;
+      b.auto_n+=(ma?ma.nt:0)+cert;
+      b.hope_n+=(mh?mh.nt:0)+cert;
+      b.meet_n+=(mm?mm.nt:0)+cert;
+      b.final_n+=(mf?mf.nt:0)+cert;
+      b.tgt+=mf?(mf.nextTarget||0):0;
+      if(mf){if(isPart(emp))b.jinji+=mf.nt*12*mr;else b.jinji+=(mf.nt+cert-cd)*14*1.2*mr;}
+      if(emp.achieve!=null){b.ach_sum+=emp.achieve;b.ach_cnt++;}
+      if(s.fDelta)b.inp3++;
+    });
+    var avgA=b.ach_cnt>0?(b.ach_sum/b.ach_cnt*100).toFixed(1)+"%":"—";
+    var gapFA=b.final_d-b.auto_d,gapFM=b.final_d-b.meet_d;
+    var diffM=b.final_n-b.old_m,diffY=diffM*14;
+    var rate=b.tgt>0?(b.jinji/b.tgt*100).toFixed(1)+"%":"—";
+    var fACol=gapFA>2?"#C62828":gapFA<-2?"#1D9E75":"#555";
+    var fMCol=gapFM>2?"#C62828":gapFM<-2?"#1D9E75":"#555";
+    var diffCol=diffM>0?"#C62828":diffM<0?"#1D9E75":"#555";
+    var scope=sf||"全店舗";
+    document.getElementById("final-summary").innerHTML=
+      "<div class=\"card\" style=\"background:linear-gradient(90deg,#E3F2FD,#FFEBEE);padding:12px 16px;margin-bottom:8px;font-size:13px\">"+
+      "<div style=\"font-weight:700;color:#C62828;margin-bottom:6px\">🏁 "+scope+" の役員会集計 (自動 / 希望 / 暫定 / 確定)</div>"+
+      "<div style=\"display:flex;gap:18px;flex-wrap:wrap\">"+
+        "<div>人数 <b>"+b.cnt+"名</b>"+(b.retired?"<span style=\"font-size:11px;color:#757575\"> (退職除外"+b.retired+")</span>":"")+"</div>"+
+        "<div>平均達成率 <b>"+avgA+"</b></div>"+
+        "<div>自動 <b>"+(b.auto_d>=0?"+":"")+b.auto_d+"</b></div>"+
+        "<div>希望 <b>"+(b.hope_d>=0?"+":"")+b.hope_d+"</b></div>"+
+        "<div>②暫定 <b>"+(b.meet_d>=0?"+":"")+b.meet_d+"</b></div>"+
+        "<div>③確定 <b style=\"color:#C62828\">"+(b.final_d>=0?"+":"")+b.final_d+"</b></div>"+
+        "<div>確定vs自動 <b style=\"color:"+fACol+"\">"+(gapFA>=0?"+":"")+gapFA+"</b></div>"+
+        "<div>確定vs②暫定 <b style=\"color:"+fMCol+"\">"+(gapFM>=0?"+":"")+gapFM+"</b></div>"+
+      "</div>"+
+      "<div style=\"display:flex;gap:18px;flex-wrap:wrap;margin-top:4px;padding-top:4px;border-top:1px dashed #FFCDD2\">"+
+        "<div>旧月額 "+yen(b.old_m)+"</div>"+
+        "<div>自動 <span style=\"color:#1565C0\">"+yen(b.auto_n)+"</span></div>"+
+        "<div>希望 <span style=\"color:#6A1B9A\">"+yen(b.hope_n)+"</span></div>"+
+        "<div>暫定 <span style=\"color:#E65100\">"+yen(b.meet_n)+"</span></div>"+
+        "<div>確定 <b style=\"color:#C62828\">"+yen(b.final_n)+"</b></div>"+
+        "<div>確定差/月 <b style=\"color:"+diffCol+"\">"+fmtSign(diffM)+"</b></div>"+
+        "<div>確定差/年(×14) <b style=\"color:"+diffCol+"\">"+fmtSign(diffY)+"</b></div>"+
+        "<div>来期利益設定 <b style=\"color:#E65100\">"+yen(b.tgt)+"</b></div>"+
+        "<div>労働分配率 <b style=\"color:#6A1B9A\">"+rate+"</b></div>"+
+        "<div>③確定 "+b.inp3+"/"+b.cnt+"</div>"+
+      "</div>"+
+      "</div>";
+  }catch(e){console.warn("final summary:",e);document.getElementById("final-summary").innerHTML="";}
   document.getElementById("final-tb").innerHTML=emps.map(function(emp){
     const s=saves[emp.name]||{},ms=s.mDelta?s.mDelta+"→"+(s.mRank||"")+" "+(s.mGrade||""):"—";
     const fR=s.fRank||"",fG=s.fGrade||"",conf=fR&&fG?fR+" "+fG:s.mRank&&s.mGrade?s.mRank+" "+s.mGrade:"";
