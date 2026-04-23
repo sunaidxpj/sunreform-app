@@ -759,7 +759,6 @@ function renderInput(){
         "<div>差額/年 <b style=\"color:"+diffCol+"\">"+fmtSign(diffY)+"</b></div>"+
         "<div>入力済 <b>"+b.inp+"/"+b.cnt+"</b></div>"+
       "</div>"+
-      "<div style=\"font-size:11px;color:#616161;margin-top:6px\">💡 店舗内でプラマイゼロに近づけてください。乖離が±3以上・差額/年が大きい場合は役員会で指摘が入ります。</div>"+
       "</div>";
   }catch(e){console.warn("store summary:",e);}
   let h=summaryHtml+"<div class=\"card\" style=\"padding:0\"><div class=\"tw\"><table><thead><tr><th style=\"width:90px\">氏名</th><th style=\"width:70px\">役職</th><th style=\"width:75px\">37期等級</th><th style=\"width:95px\">完工利益<br>結果</th><th style=\"width:95px\">完工利益<br>設定</th><th style=\"width:65px\">達成率</th><th style=\"width:95px\">自動提案変動</th><th style=\"width:110px\">自動提案結果</th><th style=\"width:160px\">備考</th><th style=\"width:115px\">上長コメント</th><th style=\"width:80px\">状態</th></tr></thead><tbody>";
