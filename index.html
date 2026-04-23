@@ -680,6 +680,22 @@ async function submitEval(){
     if(typeof renderMgr==='function'&&document.getElementById("v-mgr").style.display==="block")renderMgr();
   }catch(e){alert("保存エラー: "+e.message);}
 }
+async function deleteEval(empNo,evalName){
+  if(!isAdmin()&&evalName!==editorLabel()){alert("自分の評価のみ削除可能です");return;}
+  if(!confirm("この評価を削除しますか?\n対象: "+evalName))return;
+  var emp=EMPS.find(function(e){return e.emp_no===empNo;});if(!emp)return;
+  var arr=parseEvals(emp.evaluations||"");
+  arr=arr.filter(function(e){return e.name!==evalName;});
+  var newRaw=buildEvals(arr);
+  emp.evaluations=newRaw;
+  try{
+    var evLog=appendEditLog(emp,"eval_delete_"+evalName,"removed");
+    await upsert(emp.emp_no,{name:{value:emp.name},evaluations:{value:newRaw},last_editor:{value:editorLabel()},edit_log:{value:evLog}});
+    setSyncStatus("ok","評価を削除しました");
+    renderEval();
+    if(document.getElementById("v-mgr").style.display==="block")renderMgr();
+  }catch(e){alert("削除エラー: "+e.message);}
+}
 function renderEval(){
   fillEvalTargetSelect();
   var nameInput=document.getElementById("eval-name");
@@ -697,7 +713,9 @@ function renderEval(){
     if(visible.length){
       details=visible.map(function(e){
         var sc=e.score>=4?"bg":e.score>=3?"bb":"br";
-        return "<div style=\"padding:3px 0;border-bottom:1px dashed #EEE;font-size:12px\"><b>"+e.name+"</b> <span class=\"badge "+sc+"\">"+e.score+"</span> <span style=\"color:#424242\">"+(e.comment||"(コメント無し)")+"</span> <span style=\"color:#BDBDBD;font-size:10px\">"+(e.date||"")+"</span></div>";
+        var canDel=admin||e.name===myLabel;
+        var delBtn=canDel?" <button onclick=\"deleteEval('"+emp.emp_no+"','"+e.name.replace(/'/g,"\\'")+"')\" style=\"background:none;border:none;cursor:pointer;color:#C62828;font-size:11px\" title=\"この評価を削除\">🗑</button>":"";
+        return "<div style=\"padding:3px 0;border-bottom:1px dashed #EEE;font-size:12px\"><b>"+e.name+"</b> <span class=\"badge "+sc+"\">"+e.score+"</span> <span style=\"color:#424242\">"+(e.comment||"(コメント無し)")+"</span> <span style=\"color:#BDBDBD;font-size:10px\">"+(e.date||"")+"</span>"+delBtn+"</div>";
       }).join("");
     }else{
       details=admin?"<span style=\"color:#BDBDBD;font-size:12px\">未評価</span>":"<span style=\"color:#BDBDBD;font-size:12px\">あなたは未入力 (上のフォームから入力してください)</span>";
