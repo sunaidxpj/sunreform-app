@@ -104,17 +104,13 @@ tr:hover td{background:#FAFAFA}
 </div>
 <div id="impact-bar" style="margin:8px 20px 0;padding:10px 14px;background:linear-gradient(90deg,#E8F5E9,#E3F2FD);border:1px solid #A5D6A7;border-radius:8px;font-size:13px">
   <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:center">
-    <div style="font-weight:700;color:#1B5E20">📊 全社インパクト試算</div>
-    <div>旧月額 <b id="imp-old" style="color:#555">—</b></div>
+    <div style="font-weight:700;color:#1B5E20">📊 全社インパクト試算 <span style="font-size:11px;font-weight:normal;color:#616161">(一般+マネ)</span></div>
+    <div>一般 旧月額 <b id="imp-old" style="color:#555">—</b></div>
     <div>→ 新月額 <b id="imp-new" style="color:#1565C0">—</b></div>
     <div>月差 <span id="imp-diff" style="font-weight:700">—</span></div>
     <div>年換算差(×14) <span id="imp-diffy" style="font-weight:700">—</span></div>
     <div>来期利益設定合計 <b id="imp-tgt" style="color:#E65100">—</b></div>
-  </div>
-  <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:center;margin-top:4px;padding-top:4px;border-top:1px dashed #A5D6A7">
-    <div style="font-weight:700;color:#6A1B9A">👔 マネージャー枠 (年俸制)</div>
-    <div>年俸合計 <b id="imp-mgr-salary" style="color:#6A1B9A">—</b></div>
-    <div>利益設定合計 <b id="imp-mgr-tgt" style="color:#E65100">—</b></div>
+    <div>総労働分配率 <b id="imp-rate" style="color:#6A1B9A">—</b></div>
     <div style="font-size:11px;color:#757575;margin-left:auto" id="imp-note">—</div>
   </div>
 </div>
@@ -1016,13 +1012,15 @@ function renderAdm(){
 
 function updateProg(){const gen=EMPS.filter(function(e){return !e.is_mgr;});const done=gen.filter(function(e){return saves[e.name]&&saves[e.name].comment;}).length;document.getElementById("prog-txt").textContent="①入力: "+done+"/"+gen.length+"名";updateImpact();}
 function calcImpact(){
-  var om=0,nm=0,tgt=0,cnt=0,ret=0,conf=0,mgrSal=0,mgrTgt=0,mgrCnt=0;
+  var om=0,nm=0,tgt=0,cnt=0,ret=0,conf=0,mgrSal=0,mgrTgt=0,mgrCnt=0,totalJinji=0;
   EMPS.forEach(function(emp){
     if(isMgr(emp)){
       var s=saves[emp.name]||{};
       var sal=numParse(s.fDelta);if(sal==null)sal=emp.prev_salary||0;
       var mtg=numParse(s.fRank);if(mtg==null)mtg=emp.prev_target||0;
       mgrSal+=sal;mgrTgt+=mtg;mgrCnt++;
+      totalJinji+=sal||0;
+      tgt+=mtg||0;
       return;
     }
     if(isRetiring(emp)){ret++;return;}
@@ -1037,10 +1035,19 @@ function calcImpact(){
     om+=emp.base_pay+emp.rank_pay+45000+cert;
     nm+=m.nt+cert;
     tgt+=m.nextTarget||0;
+    // 年間人件費 (パートは×12、一般は×14×1.2、月割考慮)
+    var mr=emp.month_ratio||1.0;
+    var cd=emp.cert_deduct||0;
+    if(isPart(emp)){
+      totalJinji+=(m.nt)*12*mr;
+    }else{
+      totalJinji+=(m.nt+cert-cd)*14*1.2*mr;
+    }
     cnt++;
     if(s.fRank&&s.fGrade)conf++;
   });
-  return{om:om,nm:nm,dm:nm-om,dy:(nm-om)*14,tgt:tgt,cnt:cnt,ret:ret,conf:conf,mgrSal:mgrSal,mgrTgt:mgrTgt,mgrCnt:mgrCnt};
+  var distRate=tgt>0?(totalJinji/tgt):0;
+  return{om:om,nm:nm,dm:nm-om,dy:(nm-om)*14,tgt:tgt,cnt:cnt,ret:ret,conf:conf,mgrSal:mgrSal,mgrTgt:mgrTgt,mgrCnt:mgrCnt,totalJinji:totalJinji,distRate:distRate};
 }
 function fmtSign(v){if(v===0)return "¥0";return (v>0?"+":"-")+"¥"+Math.round(Math.abs(v)).toLocaleString("ja-JP");}
 function updateImpact(){
@@ -1051,9 +1058,13 @@ function updateImpact(){
     var d=document.getElementById("imp-diff");d.textContent=fmtSign(i.dm);d.style.color=i.dm>0?"#C62828":i.dm<0?"#1D9E75":"#555";
     var dy=document.getElementById("imp-diffy");dy.textContent=fmtSign(i.dy);dy.style.color=i.dy>0?"#C62828":i.dy<0?"#1D9E75":"#555";
     document.getElementById("imp-tgt").textContent=yen(i.tgt);
-    var ms=document.getElementById("imp-mgr-salary");if(ms)ms.textContent=yen(i.mgrSal);
-    var mt=document.getElementById("imp-mgr-tgt");if(mt)mt.textContent=yen(i.mgrTgt);
-    document.getElementById("imp-note").textContent="一般 "+i.cnt+"名(確定 "+i.conf+"・退職除外 "+i.ret+") / マネ "+(i.mgrCnt||0)+"名 / 優先: ③確定＞②暫定＞①希望＞自動提案";
+    var rateEl=document.getElementById("imp-rate");
+    if(rateEl){
+      var pct=i.distRate?(i.distRate*100).toFixed(1)+"%":"—";
+      var col=i.distRate>0.36?"#C62828":i.distRate>0.33?"#E65100":"#1B5E20";
+      rateEl.textContent=pct;rateEl.style.color=col;
+    }
+    document.getElementById("imp-note").textContent="一般 "+i.cnt+"名(確定"+i.conf+"・退職除外"+i.ret+") + マネ "+(i.mgrCnt||0)+"名 / 総人件費 "+yen(i.totalJinji);
   }catch(e){console.warn("updateImpact:",e);}
 }
 
