@@ -638,10 +638,16 @@ function parseEvals(raw){
 function buildEvals(arr){
   return arr.map(function(e){return [e.name,e.score,(e.comment||"").replace(/[|\n]/g," "),e.date||""].join("|");}).join("\n");
 }
+function isSelfManager(emp){
+  if(!currentUser||!emp)return false;
+  var myName=(currentUser.name||"").replace(/[\s　]/g,"");
+  var empName=(emp.name||"").replace(/[\s　]/g,"");
+  return myName===empName;
+}
 function fillEvalTargetSelect(){
   var sel=document.getElementById("eval-target");if(!sel)return;
   sel.innerHTML='<option value="">-- 選択 --</option>';
-  EMPS.filter(function(e){return e.is_mgr;}).forEach(function(emp){
+  EMPS.filter(function(e){return e.is_mgr&&!isSelfManager(e);}).forEach(function(emp){
     sel.innerHTML+='<option value="'+emp.emp_no+'">'+emp.name+' ('+emp.store+')</option>';
   });
 }
@@ -654,6 +660,7 @@ async function submitEval(){
   if(!empNo){alert("対象マネージャーを選択してください");return;}
   if(!score){alert("総合評価を選択してください");return;}
   var emp=EMPS.find(function(e){return e.emp_no===empNo;});if(!emp)return;
+  if(isSelfManager(emp)){alert("自分自身への評価は入力できません。");return;}
   var arr=parseEvals(emp.evaluations||"");
   var today=new Date().toISOString().slice(0,10);
   var idx=arr.findIndex(function(e){return e.name===name;});
@@ -680,7 +687,7 @@ function renderEval(){
   var myLabel=editorLabel();
   var admin=isAdmin();
   var rows="";
-  EMPS.filter(function(e){return e.is_mgr;}).forEach(function(emp){
+  EMPS.filter(function(e){return e.is_mgr&&!isSelfManager(e);}).forEach(function(emp){
     var arr=parseEvals(emp.evaluations||"");
     var avg=arr.length?(arr.reduce(function(s,e){return s+e.score;},0)/arr.length).toFixed(1):"—";
     var avgCls=arr.length?(avg>=4?"color:#1D9E75;font-weight:700":avg>=3?"color:#1565C0;font-weight:700":"color:#C62828;font-weight:700"):"color:#BDBDBD";
@@ -703,7 +710,7 @@ function numParse(s){if(s===null||s===undefined||s==="")return null;var n=Number
 function numFmt(n){return n==null?"":n.toLocaleString("ja-JP");}
 function renderMgr(){
   var rows="",tot={salary:0,tgt:0,cnt:0,inp:0};
-  EMPS.filter(function(e){return e.is_mgr;}).forEach(function(emp){
+  EMPS.filter(function(e){return e.is_mgr&&!isSelfManager(e);}).forEach(function(emp){
     var s=saves[emp.name]||{};
     var ach=emp.achieve;
     var prevSal=emp.prev_salary||0;
