@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>38期 昇降格査定システム</title>
+<script src="https://alcdn.msauth.net/browser/3.17.0/js/msal-browser.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif;font-size:14px;background:#F5F5F5;color:#212121}
@@ -73,13 +74,25 @@ tr:hover td{background:#FAFAFA}
 </style>
 </head>
 <body>
+<div id="login-gate" style="display:none;min-height:100vh;background:linear-gradient(135deg,#E8F5E9,#E3F2FD);align-items:center;justify-content:center;flex-direction:column;gap:18px">
+  <div style="background:#fff;padding:40px 50px;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,.1);text-align:center;max-width:420px">
+    <div style="font-size:48px;margin-bottom:12px">🔐</div>
+    <div style="font-size:20px;font-weight:700;margin-bottom:8px;color:#1D9E75">38期 昇降格査定システム</div>
+    <div style="font-size:13px;color:#757575;margin-bottom:24px">サンリフォーム社員限定<br/>Microsoftアカウントでサインインしてください</div>
+    <button class="btn btn-p" onclick="loginMS()" style="font-size:15px;padding:10px 24px">🔑 Microsoftでサインイン</button>
+    <div id="login-err" style="font-size:12px;color:#C62828;margin-top:12px"></div>
+  </div>
+</div>
+<div id="app-root" style="display:none">
 <div class="topbar">
   <div><div class="tt">38期 昇降格査定システム</div><div class="ts">キントーン連携 ／ 一般68名 + マネージャー18名</div></div>
   <div style="display:flex;gap:6px;align-items:center">
+    <span id="user-info" style="font-size:12px;color:#424242;background:#F5F5F5;padding:4px 8px;border-radius:4px"></span>
     <span id="prog-txt" style="font-size:12px;color:#757575"></span>
     <button class="btn btn-sm" onclick="loadData()">↻ 同期</button>
     <button class="btn btn-sm" onclick="showTab(&#34;admin&#34;)">全社一覧</button>
     <button class="btn btn-sm btn-p" onclick="checkCSVAuth()">CSV出力</button>
+    <button class="btn btn-sm" onclick="logoutMS()" title="サインアウト">🚪</button>
   </div>
 </div>
 <div class="sync-bar" style="margin:12px 20px 0">
@@ -113,6 +126,7 @@ tr:hover td{background:#FAFAFA}
   <div class="tab" id="tab-store" onclick="showTab(&#34;store&#34;)">店舗別比較</div>
   <div class="tab locked" id="tab-mgr" onclick="tryUnlockMgr()">🔒 マネージャー査定</div>
   <div class="tab locked" id="tab-eval" onclick="tryUnlockEval()">🔒 マネ事前評価</div>
+  <div class="tab" id="tab-audit" onclick="showTab(&#34;audit&#34;)" style="display:none">📝 編集履歴</div>
   <div class="tab" id="tab-admin" onclick="showTab(&#34;admin&#34;)">全社一覧</div>
 </div>
 <div class="content">
@@ -244,6 +258,16 @@ tr:hover td{background:#FAFAFA}
     </tr></thead><tbody id="eval-tb"></tbody></table></div>
   </div>
 </div>
+<div id="v-audit" style="display:none">
+  <div class="card">
+    <div class="ct">📝 編集履歴 (管理者のみ)</div>
+    <div style="font-size:12px;color:#757575">誰がいつ何を変更したかのログ。各レコード最新30件まで保持。全体ソートは時刻順。</div>
+  </div>
+  <div class="card" style="padding:0"><div class="tw"><table><thead><tr>
+    <th style="width:150px">日時</th><th style="width:100px">氏名</th><th style="width:140px">編集者</th>
+    <th style="width:100px">フィールド</th><th style="width:auto">値</th>
+  </tr></thead><tbody id="audit-tb"></tbody></table></div></div>
+</div>
 <div id="v-admin" style="display:none">
   <div class="metrics" id="adm-metrics"></div>
   <div class="card" style="padding:0"><div class="tw"><table><thead><tr>
@@ -289,6 +313,7 @@ tr:hover td{background:#FAFAFA}
   <div style="color:#E53935;font-size:12px;margin-top:8px;min-height:18px" id="pw-err"></div>
   <button class="btn" style="width:100%;margin-top:10px;font-size:12px" onclick="closePW()">キャンセル</button>
 </div></div></div>
+</div>
 <script>
 const GAS_URL="https://script.google.com/macros/s/AKfycbxodaTebEe9LS7cvED3x10gnEAJDDUw1itaSzow0Yza-kPJmqLyUw3iJpMEgFqTSJfp/exec";
 const EMPS=[{"emp_no":"0108","name":"松尾孝宏","store":"大阪店","is_mgr":false,"table37":"②営業","rank37":"課長","grade37":"B-2号","birth_date":"1978/04/06","base_pay":155000,"rank_pay":250000,"result":24106784,"target":27750000,"achieve":0.8687,"cert_deduct":70000,"jinji_cost":9030000,"dist_rate":0.33,"month_ratio":1.0,"memo":"","cert_allow":120000},{"emp_no":"0109","name":"大石将弘","store":"大阪店","is_mgr":false,"table37":"②営業","rank37":"係長","grade37":"C-2号","birth_date":"1983/12/24","base_pay":140500,"rank_pay":210000,"result":17733654,"target":23525001,"achieve":0.7538,"cert_deduct":0,"jinji_cost":7366800,"dist_rate":0.33,"month_ratio":1.0,"memo":"","cert_allow":5000},{"emp_no":"0135","name":"榮秀利","store":"大阪店","is_mgr":false,"table37":"③施工管理","rank37":"2級職","grade37":"A-1号","birth_date":"1999/03/12","base_pay":84000,"rank_pay":150000,"result":14773851,"target":10725003,"achieve":1.3775,"cert_deduct":0,"jinji_cost":4754400,"dist_rate":0.33,"month_ratio":1.0,"memo":"","cert_allow":0},{"emp_no":"0144","name":"中西凜太","store":"大阪店","is_mgr":false,"table37":"②営業","rank37":"2級職","grade37":"B-1号","birth_date":"1999/12/30","base_pay":80000,"rank_pay":139000,"result":19998901,"target":15155004,"achieve":1.3196,"cert_deduct":0,"jinji_cost":4754400,"dist_rate":0.33,"month_ratio":1.0,"memo":"","cert_allow":15000},{"emp_no":"0146","name":"安福翼","store":"大阪店","is_mgr":false,"table37":"②営業","rank37":"2級職","grade37":"B-3号","birth_date":"2000/02/23","base_pay":80000,"rank_pay":135000,"result":10250360,"target":14930004,"achieve":0.6866,"cert_deduct":0,"jinji_cost":4687200,"dist_rate":0.33,"month_ratio":1.0,"memo":"","cert_allow":0},{"emp_no":"0172","name":"誉田裕一郎","store":"大阪店","is_mgr":false,"table37":"②営業","rank37":"2級職","grade37":"C-2号","birth_date":"1989/02/02","base_pay":123500,"rank_pay":131000,"result":12065700,"target":11475000,"achieve":1.0515,"cert_deduct":0,"jinji_cost":0,"dist_rate":0.33,"month_ratio":1.0,"memo":"2026.6退職","cert_allow":0},{"emp_no":"0199","name":"笹山慎悟","store":"大阪店","is_mgr":false,"table37":"②営業","rank37":"3級職","grade37":"A-1号","birth_date":"1998/01/10","base_pay":88000,"rank_pay":122000,"result":null,"target":null,"achieve":null,"cert_deduct":0,"jinji_cost":4351200,"dist_rate":0.33,"month_ratio":1.0,"memo":"2026.2.11入社 / 2026.8から / 対象外","cert_allow":0},{"emp_no":"0313","name":"光畑祥子","store":"大阪店","is_mgr":false,"table37":"④設計","rank37":"係長","grade37":"C-3号","birth_date":"1975/04/28","base_pay":142000,"rank_pay":173500,"result":25449915,"target":18857502,"achieve":1.3496,"cert_deduct":15000,"jinji_cost":6426000,"dist_rate":0.33,"month_ratio":1.0,"memo":"","cert_allow":35000},{"emp_no":"0326","name":"當眞聖子","store":"大阪店","is_mgr":false,"table37":"④設計","rank37":"1級職","grade37":"A-2号","birth_date":"1973/06/24","base_pay":145500,"rank_pay":140000,"result":15072026,"target":17679996,"achieve":0.8525,"cert_deduct":0,"jinji_cost":6081600,"dist_rate":0.33,"month_ratio":1.0,"memo":"","cert_allow":30000},{"emp_no":"0327","name":"杉江優奈","store":"大阪店","is_mgr":false,"table37":"④設計","rank37":"2級職","grade37":"A-1号","birth_date":"1986/07/22","base_pay":115500,"rank_pay":124000,"result":4160871,"target":5449998,"achieve":0.7635,"cert_deduct":0,"jinji_cost":3622500,"dist_rate":0.33,"month_ratio":0.583333,"memo":"時短：6/8 / 2025.4/28復帰 / 2025年9月から / 7ヶ月分","cert_allow":0},{"emp_no":"0125","name":"武川聖","store":"神戸店","is_mgr":false,"table37":"③施工管理","rank37":"主任","grade37":"C-2号","birth_date":"1998/02/19","base_pay":88000,"rank_pay":185000,"result":18300081,"target":12150000,"achieve":1.5062,"cert_deduct":0,"jinji_cost":5409600,"dist_rate":0.33,"month_ratio":1.0,"memo":"","cert_allow":0},{"emp_no":"0126","name":"豊田祐寿","store":"神戸店","is_mgr":false,"table37":"②営業","rank37":"主任","grade37":"A-3号","birth_date":"1987/12/14","base_pay":127000,"rank_pay":190000,"result":25792667,"target":22769997,"achieve":1.1327,"cert_deduct":15000,"jinji_cost":7484400,"dist_rate":0.33,"month_ratio":1.0,"memo":"","cert_allow":50000},{"emp_no":"0142","name":"田中透磨","store":"神戸店","is_mgr":false,"table37":"②営業","rank37":"2級職","grade37":"B-1号","birth_date":"2001/09/04","base_pay":72500,"rank_pay":139000,"result":20416780,"target":14844996,"achieve":1.3753,"cert_deduct":0,"jinji_cost":4620000,"dist_rate":0.33,"month_ratio":1.0,"memo":"","cert_allow":0},{"emp_no":"0318","name":"片山斉子","store":"神戸店","is_mgr":false,"table37":"④設計","rank37":"主任","grade37":"C-3号","birth_date":"1972/11/01","base_pay":147000,"rank_pay":150000,"result":15033243,"target":18129996,"achieve":0.8292,"cert_deduct":20000,"jinji_cost":6274800,"dist_rate":0.33,"month_ratio":1.0,"memo":"","cert_allow":50000},{"emp_no":"0195","name":"山地大樹","store":"神戸店","is_mgr":false,"table37":"②営業","rank37":"3級職","grade37":"A-1号","birth_date":"1999/04/27","base_pay":80000,"rank_pay":122000,"result":null,"target":null,"achieve":null,"cert_deduct":20000,"jinji_cost":3880800,"dist_rate":0.33,"month_ratio":0.083333,"memo":"2025.11.11入社 / 2026.6月から / 1/12","cert_allow":0},{"emp_no":"0198","name":"橋本明憲","store":"神戸店","is_mgr":false,"table37":"②営業","rank37":"3級職","grade37":"A-1号","birth_date":"1983/10/25","base_pay":140500,"rank_pay":122000,"result":null,"target":null,"achieve":null,"cert_deduct":20000,"jinji_cost":5636400,"dist_rate":0.33,"month_ratio":1.0,"memo":"2025.12.11入社 / 対象外","cert_allow":15000},{"emp_no":"0203","name":"薬師寺裕介","store":"神戸店","is_mgr":false,"table37":"②営業","rank37":"3級職","grade37":"A-1号","birth_date":"1994/01/28","base_pay":108000,"rank_pay":122000,"result":null,"target":null,"achieve":null,"cert_deduct":20000,"jinji_cost":4284000,"dist_rate":0.33,"month_ratio":1.0,"memo":"2026.4.11入社 / 対象外","cert_allow":0},{"emp_no":"0136","name":"泰山愛佳","store":"西宮店","is_mgr":false,"table37":"②営業","rank37":"1級職","grade37":"B-3号","birth_date":"1997/08/26","base_pay":88000,"rank_pay":158000,"result":16972800,"target":16749996,"achieve":1.0133,"cert_deduct":0,"jinji_cost":3780000,"dist_rate":0.33,"month_ratio":1.0,"memo":"","cert_allow":5000},{"emp_no":"0140","name":"矢原直人","store":"西宮店","is_mgr":false,"table37":"②営業","rank37":"1級職","grade37":"C-1号","birth_date":"1984/12/20","base_pay":137500,"rank_pay":156000,"result":12688022,"target":20190003,"achieve":0.6284,"cert_deduct":0,"jinji_cost":6241200,"dist_rate":0.33,"month_ratio":1.0,"memo":"","cert_allow":0},{"emp_no":"0338","name":"藤田千尋","store":"西宮店","is_mgr":false,"table37":"④設計","rank37":"2級職","grade37":"C-3号","birth_date":"1983/02/04","base_pay":126500,"rank_pay":112000,"result":9339836,"target":9120003,"achieve":1.0241,"cert_deduct":0,"jinji_cost":5720400,"dist_rate":0.33,"month_ratio":0.75,"memo":"2025.7から正社員 / 9ヶ月分","cert_allow":20000},{"emp_no":"0304","name":"濵﨑千智","store":"京都店","is_mgr":false,"table37":"④設計","rank37":"1級職","grade37":"A-3号","birth_date":"1972/04/04","base_pay":147000,"rank_pay":138500,"result":8349278,"target":13200003,"achieve":0.6325,"cert_deduct":0,"jinji_cost":5829600,"dist_rate":0.33,"month_ratio":1.0,"memo":"","cert_allow":15000},{"emp_no":"0185","name":"石田和美","store":"京都店","is_mgr":false,"table37":"②営業","rank37":"2級職","grade37":"B-3号","birth_date":"1977/07/07","base_pay":157500,"rank_pay":135000,"result":10688567,"target":16366670,"achieve":0.6531,"cert_deduct":0,"jinji_cost":6720000,"dist_rate":0.33,"month_ratio":1.0,"memo":"2025年6月から","cert_allow":0},{"emp_no":"0190","name":"内田泰平","store":"京都店","is_mgr":false,"table37":"②営業","rank37":"1級職","grade37":"C-1号","birth_date":"1982/12/09","base_pay":143500,"rank_pay":156000,"result":7066190,"target":9199998,"achieve":0.7681,"cert_deduct":0,"jinji_cost":6090000,"dist_rate":0.33,"month_ratio":1.0,"memo":"4/11入社 / 2025年10月から6 / ヶ月分","cert_allow":15000},{"emp_no":"0603","name":"中村依里","store":"京都店","is_mgr":false,"table37":"設計職","rank37":"免許無","grade37":"1級-E","birth_date":"1984/06/19","base_pay":0,"rank_pay":1500,"result":2895281,"target":2994996,"achieve":0.9667,"cert_deduct":0,"jinji_cost":0,"dist_rate":0.33,"month_ratio":1.0,"memo":"パート(査定対象外)","cert_allow":0},{"emp_no":"0202","name":"太田知貴","store":"京都店","is_mgr":false,"table37":"②営業","rank37":"2級職","grade37":"B-3号","birth_date":"1994/09/30","base_pay":104000,"rank_pay":135000,"result":null,"target":null,"achieve":null,"cert_deduct":0,"jinji_cost":5527200,"dist_rate":0.33,"month_ratio":1.0,"memo":"2026.4.11入社 / 対象外","cert_allow":15000},{"emp_no":"0328","name":"遠藤泉","store":"横浜店","is_mgr":false,"table37":"④設計","rank37":"係長","grade37":"B-3号","birth_date":"1986/10/25","base_pay":115500,"rank_pay":178000,"result":16107023,"target":20025003,"achieve":0.8043,"cert_deduct":0,"jinji_cost":6829200,"dist_rate":0.33,"month_ratio":1.0,"memo":"","cert_allow":30000},{"emp_no":"0330","name":"古川麻里子","store":"横浜店","is_mgr":false,"table37":"④設計","rank37":"主任","grade37":"C-3号","birth_date":"1984/03/06","base_pay":124000,"rank_pay":150000,"result":16571510,"target":19175001,"achieve":0.8642,"cert_deduct":0,"jinji_cost":6745200,"dist_rate":0.33,"month_ratio":1.0,"memo":"","cert_allow":15000},{"emp_no":"0153","name":"萩原舞花","store":"横浜店","is_mgr":false,"table37":"②営業","rank37":"主任","grade37":"C-3号","birth_date":"1998/03/10","base_pay":88000,"rank_pay":178000,"result":19703939,"target":19062504,"achieve":1.0336,"cert_deduct":0,"jinji_cost":6048000,"dist_rate":0.33,"month_ratio":1.0,"memo":"","cert_allow":5000},{"emp_no":"0154","name":"小池薫乃","store":"横浜店","is_mgr":false,"table37":"④設計","rank37":"2級職","grade37":"A-2号","birth_date":"1998/11/20","base_pay":75000,"rank_pay":122500,"result":15853307,"target":14400003,"achieve":1.1009,"cert_deduct":0,"jinji_cost":4468800,"dist_rate":0.33,"month_ratio":1.0,"memo":"","cert_allow":0},{"emp_no":"0166","name":"伊藤康貴","store":"横浜店","is_mgr":false,"table37":"②営業","rank37":"2級職","grade37":"C-2号","birth_date":"1994/12/18","base_pay":100000,"rank_pay":131000,"result":14913669,"target":16062504,"achieve":0.9285,"cert_deduct":0,"jinji_cost":5376000,"dist_rate":0.33,"month_ratio":1.0,"memo":"","cert_allow":0},{"emp_no":"0171","name":"中山正隆","store":"横浜店","is_mgr":false,"table37":"②営業","rank37":"2級職","grade37":"B-1号","birth_date":"1996/03/01","base_pay":96000,"rank_pay":139000,"result":18926841,"target":15729999,"achieve":1.2032,"cert_deduct":0,"jinji_cost":5107200,"dist_rate":0.33,"month_ratio":1.0,"memo":"","cert_allow":0},{"emp_no":"0200","name":"杵渕和江","store":"横浜店","is_mgr":false,"table37":"②営業","rank37":"2級職","grade37":"C-2号","birth_date":"1978/10/12","base_pay":155000,"rank_pay":131000,"result":null,"target":null,"achieve":null,"cert_deduct":0,"jinji_cost":6190800,"dist_rate":0.33,"month_ratio":1.0,"memo":"2026.3.11入社 / 対象外","cert_allow":15000},{"emp_no":"0150","name":"吉田航太","store":"東京店","is_mgr":false,"table37":"②営業","rank37":"主任","grade37":"B-2号","birth_date":"1983/12/02","base_pay":140500,"rank_pay":186000,"result":10848327,"target":22250004,"achieve":0.4876,"cert_deduct":0,"jinji_cost":6627600,"dist_rate":0.33,"month_ratio":1.0,"memo":"","cert_allow":0},{"emp_no":"0160","name":"大嶋光彦","store":"東京店","is_mgr":false,"table37":"②営業","rank37":"2級職","grade37":"B-3号","birth_date":"1996/01/30","base_pay":96000,"rank_pay":135000,"result":10144320,"target":16887498,"achieve":0.6007,"cert_deduct":0,"jinji_cost":5040000,"dist_rate":0.33,"month_ratio":1.0,"memo":"","cert_allow":0},{"emp_no":"0332","name":"霞すず","store":"東京店","is_mgr":false,"table37":"④設計","rank37":"2級職","grade37":"B-2号","birth_date":"1995/03/16","base_pay":89000,"rank_pay":118000,"result":12867909,"target":14535003,"achieve":0.8853,"cert_deduct":15000,"jinji_cost":4964400,"dist_rate":0.33,"month_ratio":1.0,"memo":"","cert_allow":35000},{"emp_no":"0181","name":"中村司","store":"東京店","is_mgr":false,"table37":"②営業","rank37":"3級職","grade37":"A-1号","birth_date":"1996/04/25","base_pay":92000,"rank_pay":122000,"result":6122325,"target":14150004,"achieve":0.4327,"cert_deduct":0,"jinji_cost":4754400,"dist_rate":0.33,"month_ratio":1.0,"memo":"休職中","cert_allow":0},{"emp_no":"0192","name":"記野亜季","store":"東京店","is_mgr":false,"table37":"②営業","rank37":"2級職","grade37":"C-2号","birth_date":"1984/10/11","base_pay":137500,"rank_pay":131000,"result":1932915,"target":4250001,"achieve":0.4548,"cert_deduct":0,"jinji_cost":5653200,"dist_rate":0.33,"month_ratio":0.25,"memo":"2026年1月から / 3/12","cert_allow":0},{"emp_no":"0336","name":"荒川智美","store":"東京店","is_mgr":false,"table37":"②営業","rank37":"2級職","grade37":"C-2号","birth_date":"1997/05/06","base_pay":88000,"rank_pay":131000,"result":1667340,"target":2920000,"achieve":0.571,"cert_deduct":0,"jinji_cost":4838400,"dist_rate":0.33,"month_ratio":0.166667,"memo":"2026.1.11から正社員 / 2ヶ月分","cert_allow":0},{"emp_no":"0103","name":"冨田江麻","store":"施工管理","is_mgr":false,"table37":"⑥サポート","rank37":"課長","grade37":"A-3号","birth_date":"1981/04/07","base_pay":111500,"rank_pay":199500,"result":10905932,"target":6824997,"achieve":1.5979,"cert_deduct":0,"jinji_cost":6014400,"dist_rate":0.33,"month_ratio":1.0,"memo":"旧姓：荻田","cert_allow":0},{"emp_no":"0123","name":"吉川ゆい","store":"施工管理","is_mgr":false,"table37":"⑥サポート","rank37":"主任（係長）","grade37":"B-3号","birth_date":"1994/09/22","base_pay":78000,"rank_pay":142000,"result":17370963,"target":12030003,"achieve":1.444,"cert_deduct":0,"jinji_cost":5275200,"dist_rate":0.33,"month_ratio":1.0,"memo":"","cert_allow":0},{"emp_no":"0402","name":"福田義根","store":"ハコ大阪","is_mgr":false,"table37":"③施工管理","rank37":"課長","grade37":"A-1号","birth_date":"1981/08/26","base_pay":146500,"rank_pay":263000,"result":30293829,"target":26005002,"achieve":1.1649,"cert_deduct":0,"jinji_cost":7938000,"dist_rate":0.3,"month_ratio":1.0,"memo":"","cert_allow":0},{"emp_no":"0309","name":"大友由希","store":"ハコ大阪","is_mgr":false,"table37":"②営業","rank37":"主任","grade37":"C-2号","birth_date":"1986/01/26","base_pay":134000,"rank_pay":180000,"result":20704303,"target":22165002,"achieve":0.9341,"cert_deduct":15000,"jinji_cost":6678000,"dist_rate":0.3,"month_ratio":1.0,"memo":"","cert_allow":35000},{"emp_no":"0114","name":"荻野めぐみ","store":"ハコ大阪","is_mgr":false,"table37":"②営業","rank37":"1級職","grade37":"C-1号","birth_date":"1981/05/18","base_pay":146500,"rank_pay":156000,"result":24543378,"target":17751000,"achieve":1.3826,"cert_deduct":0,"jinji_cost":5888400,"dist_rate":0.3,"month_ratio":1.0,"memo":"旧姓：鴫原","cert_allow":0},{"emp_no":"0315","name":"増田翠","store":"ハコ大阪","is_mgr":false,"table37":"②営業","rank37":"1級職","grade37":"A-1号","birth_date":"1991/05/20","base_pay":112000,"rank_pay":168000,"result":21311841,"target":19900002,"achieve":1.0709,"cert_deduct":0,"jinji_cost":5863200,"dist_rate":0.3,"month_ratio":1.0,"memo":"","cert_allow":20000},{"emp_no":"0322","name":"中塚由真","store":"ハコ大阪","is_mgr":false,"table37":"②営業","rank37":"係長","grade37":"C-3号","birth_date":"1990/05/01","base_pay":116000,"rank_pay":208000,"result":19650075,"target":22390002,"achieve":0.8776,"cert_deduct":0,"jinji_cost":6518400,"dist_rate":0.3,"month_ratio":1.0,"memo":"","cert_allow":15000},{"emp_no":"0323","name":"石村麻子","store":"ハコ大阪","is_mgr":false,"table37":"②営業","rank37":"主任","grade37":"B-2号","birth_date":"1978/06/06","base_pay":155000,"rank_pay":186000,"result":22444161,"target":22239999,"achieve":1.0092,"cert_deduct":0,"jinji_cost":6610800,"dist_rate":0.3,"month_ratio":1.0,"memo":"","cert_allow":5000},{"emp_no":"0414","name":"金子拓巳","store":"ハコ大阪","is_mgr":false,"table37":"③施工管理","rank37":"1級職","grade37":"B-3号","birth_date":"1997/01/22","base_pay":92000,"rank_pay":163000,"result":21139335,"target":17307501,"achieve":1.2214,"cert_deduct":0,"jinji_cost":5107200,"dist_rate":0.3,"month_ratio":1.0,"memo":"","cert_allow":0},{"emp_no":"0162","name":"山口和俊","store":"ハコ大阪","is_mgr":false,"table37":"②営業","rank37":"主任","grade37":"C-3号","birth_date":"1991/09/17","base_pay":112000,"rank_pay":178000,"result":29296408,"target":21122499,"achieve":1.387,"cert_deduct":15000,"jinji_cost":6535200,"dist_rate":0.3,"month_ratio":1.0,"memo":"","cert_allow":35000},{"emp_no":"0411","name":"山谷めぐみ","store":"ハコ大阪","is_mgr":false,"table37":"⑥サポート","rank37":"主任","grade37":"C-2号","birth_date":"1979/01/22","base_pay":117000,"rank_pay":139000,"result":12317710,"target":7575003,"achieve":1.6261,"cert_deduct":0,"jinji_cost":6678000,"dist_rate":0.3,"month_ratio":1.0,"memo":"","cert_allow":20000},{"emp_no":"0335","name":"杉浦嘉紀","store":"ハコ大阪","is_mgr":false,"table37":"②営業","rank37":"3級職","grade37":"A-1号","birth_date":"1999/06/16","base_pay":80000,"rank_pay":122000,"result":1374802,"target":7399998,"achieve":0.1858,"cert_deduct":0,"jinji_cost":4468800,"dist_rate":0.3,"month_ratio":0.5,"memo":"2025.4.11入社 / 2025年10月から6ヶ月分","cert_allow":15000},{"emp_no":"0194","name":"西田梨乃","store":"ハコ大阪","is_mgr":false,"table37":"②営業","rank37":"2級職","grade37":"C-2号","birth_date":"1998/09/24","base_pay":84000,"rank_pay":131000,"result":null,"target":null,"achieve":null,"cert_deduct":0,"jinji_cost":4687200,"dist_rate":0.3,"month_ratio":1.0,"memo":"2025.10.11入社 / 2026年5月から / 対象外","cert_allow":15000},{"emp_no":"0147","name":"千田龍成","store":"ハコ山下公園","is_mgr":false,"table37":"③施工管理","rank37":"1級職","grade37":"A-1号","birth_date":"1988/07/13","base_pay":123500,"rank_pay":173000,"result":24569148,"target":23072499,"achieve":1.0649,"cert_deduct":15000,"jinji_cost":7140000,"dist_rate":0.3,"month_ratio":1.0,"memo":"","cert_allow":45000},{"emp_no":"0319","name":"小野愛","store":"ハコ山下公園","is_mgr":false,"table37":"②営業","rank37":"主任","grade37":"C-2号","birth_date":"1991/04/08","base_pay":112000,"rank_pay":180000,"result":27784858,"target":21265002,"achieve":1.3066,"cert_deduct":15000,"jinji_cost":6316800,"dist_rate":0.3,"month_ratio":1.0,"memo":"旧姓：江口","cert_allow":0},{"emp_no":"0325","name":"有本伽菜","store":"ハコ山下公園","is_mgr":false,"table37":"②営業","rank37":"1級職","grade37":"B-3号","birth_date":"1995/10/03","base_pay":96000,"rank_pay":158000,"result":18904830,"target":18689997,"achieve":1.0115,"cert_deduct":0,"jinji_cost":5762400,"dist_rate":0.3,"month_ratio":1.0,"memo":"","cert_allow":0},{"emp_no":"0173","name":"中嶋勝志","store":"ハコ山下公園","is_mgr":false,"table37":"③施工管理","rank37":"2級職","grade37":"B-1号","birth_date":"1988/05/23","base_pay":123500,"rank_pay":144000,"result":21871177,"target":18648336,"achieve":1.1728,"cert_deduct":0,"jinji_cost":6148800,"dist_rate":0.3,"month_ratio":1.0,"memo":"","cert_allow":10000},{"emp_no":"0333","name":"西谷俊介","store":"ハコ山下公園","is_mgr":false,"table37":"②営業","rank37":"2級職","grade37":"C-1号","birth_date":"1993/09/04","base_pay":104000,"rank_pay":133000,"result":19625918,"target":16773747,"achieve":1.17,"cert_deduct":0,"jinji_cost":5392800,"dist_rate":0.3,"month_ratio":1.0,"memo":"","cert_allow":15000},{"emp_no":"0183","name":"櫨本博之","store":"ハコ山下公園","is_mgr":false,"table37":"②営業","rank37":"1級職","grade37":"C-3号","birth_date":"1977/04/02","base_pay":157500,"rank_pay":152000,"result":17382340,"target":19705000,"achieve":0.8821,"cert_deduct":0,"jinji_cost":6837600,"dist_rate":0.3,"month_ratio":1.0,"memo":"2025.5から / 11か月","cert_allow":30000},{"emp_no":"0334","name":"遠矢晃世","store":"ハコ山下公園","is_mgr":false,"table37":"②営業","rank37":"3級職","grade37":"A-1号","birth_date":"1998/06/08","base_pay":84000,"rank_pay":122000,"result":5025048,"target":12541670,"achieve":0.4007,"cert_deduct":0,"jinji_cost":4620000,"dist_rate":0.3,"month_ratio":0.916667,"memo":"2025.5から / 11か月分","cert_allow":0},{"emp_no":"0413","name":"芋野修一郎","store":"きがえる大阪店","is_mgr":false,"table37":"③施工管理","rank37":"2級職","grade37":"A-2号","birth_date":"1995/06/25","base_pay":96000,"rank_pay":148000,"result":11894828,"target":10125000,"achieve":1.1748,"cert_deduct":0,"jinji_cost":4922400,"dist_rate":0.36,"month_ratio":1.0,"memo":"","cert_allow":0},{"emp_no":"0168","name":"狭間衿南","store":"きがえる大阪店","is_mgr":false,"table37":"②営業","rank37":"2級職","grade37":"C-3号","birth_date":"1990/09/27","base_pay":116000,"rank_pay":129000,"result":14288405,"target":14324997,"achieve":0.9974,"cert_deduct":0,"jinji_cost":4939200,"dist_rate":0.36,"month_ratio":1.0,"memo":"","cert_allow":0},{"emp_no":"0175","name":"梶原彩香","store":"きがえる大阪店","is_mgr":false,"table37":"②営業","rank37":"2級職","grade37":"C-3号","birth_date":"2001/05/16","base_pay":72500,"rank_pay":129000,"result":11043728,"target":11491668,"achieve":0.961,"cert_deduct":0,"jinji_cost":4452000,"dist_rate":0.36,"month_ratio":1.0,"memo":"","cert_allow":0},{"emp_no":"0176","name":"信貴亮哉","store":"きがえる大阪店","is_mgr":false,"table37":"②営業","rank37":"2級職","grade37":"C-3号","birth_date":"2001/07/20","base_pay":72500,"rank_pay":129000,"result":10180985,"target":10966671,"achieve":0.9284,"cert_deduct":0,"jinji_cost":4200000,"dist_rate":0.36,"month_ratio":1.0,"memo":"","cert_allow":0},{"emp_no":"0201","name":"内田雄大","store":"きがえる大阪店","is_mgr":false,"table37":"②営業","rank37":"3級職","grade37":"A-1号","birth_date":"2001/05/20","base_pay":76000,"rank_pay":122000,"result":null,"target":null,"achieve":null,"cert_deduct":0,"jinji_cost":4418400,"dist_rate":0.36,"month_ratio":1.0,"memo":"2026.4.11入社 / 対象外","cert_allow":0},{"emp_no":"0164","name":"野添未来","store":"きがえる吹田店","is_mgr":false,"table37":"②営業","rank37":"2級職","grade37":"B-3号","birth_date":"1993/02/13","base_pay":108000,"rank_pay":135000,"result":16100627,"target":14297499,"achieve":1.1261,"cert_deduct":0,"jinji_cost":4905600,"dist_rate":0.36,"month_ratio":1.0,"memo":"","cert_allow":0},{"emp_no":"0170","name":"植田芳","store":"きがえる吹田店","is_mgr":false,"table37":"②営業","rank37":"3級職","grade37":"A-1号","birth_date":"1976/03/01","base_pay":162500,"rank_pay":122000,"result":14326076,"target":15572997,"achieve":0.9199,"cert_deduct":0,"jinji_cost":5577600,"dist_rate":0.36,"month_ratio":1.0,"memo":"","cert_allow":0},{"emp_no":"0180","name":"松井怜親","store":"きがえる吹田店","is_mgr":false,"table37":"②営業","rank37":"2級職","grade37":"C-3号","birth_date":"1986/03/03","base_pay":134000,"rank_pay":129000,"result":6164363,"target":15610710,"achieve":0.3949,"cert_deduct":0,"jinji_cost":5485200,"dist_rate":0.36,"month_ratio":1.0,"memo":"","cert_allow":0},{"emp_no":"0186","name":"濱田剛史","store":"きがえる吹田店","is_mgr":false,"table37":"②営業","rank37":"3級職","grade37":"A-1号","birth_date":"1986/03/19","base_pay":134000,"rank_pay":122000,"result":5339007,"target":11716667,"achieve":0.4557,"cert_deduct":0,"jinji_cost":5115600,"dist_rate":0.36,"month_ratio":0.833333,"memo":"2025.6から / 10カ月分","cert_allow":0},{"emp_no":"0197","name":"松本一城","store":"きがえる吹田店","is_mgr":false,"table37":"②営業","rank37":"2級職","grade37":"C-3号","birth_date":"1979/01/16","base_pay":155000,"rank_pay":129000,"result":null,"target":null,"achieve":null,"cert_deduct":0,"jinji_cost":6577200,"dist_rate":0.36,"month_ratio":0.083333,"memo":"2025.11.11入社 / 2026.6月から / 1/12","cert_allow":0},{"emp_no":"0115","name":"臼井祐輔","store":"大阪店","is_mgr":true,"table37":"マネージャー","rank37":"マネージャー","grade37":"等級無","birth_date":"1983/03/09","base_pay":0,"rank_pay":0,"result":149217084,"target":216240018,"achieve":0.6901,"cert_deduct":0,"jinji_cost":0,"dist_rate":0.33,"month_ratio":1.0,"memo":"","cert_allow":0,"prev_salary":0,"prev_target":12800000},{"emp_no":"0111","name":"井上大蔵","store":"神戸店","is_mgr":true,"table37":"マネージャー","rank37":"マネージャー","grade37":"等級無","birth_date":"1986/03/17","base_pay":0,"rank_pay":0,"result":155652966,"target":137917495,"achieve":1.1286,"cert_deduct":0,"jinji_cost":0,"dist_rate":0.33,"month_ratio":1.0,"memo":"","cert_allow":0,"prev_salary":0,"prev_target":12800000},{"emp_no":"0105","name":"橋本智洋","store":"京都店","is_mgr":true,"table37":"マネージャー","rank37":"マネージャー","grade37":"等級無","birth_date":"1979/08/11","base_pay":0,"rank_pay":0,"result":50307992,"target":77991672,"achieve":0.645,"cert_deduct":0,"jinji_cost":0,"dist_rate":0.33,"month_ratio":1.0,"memo":"","cert_allow":0,"prev_salary":0,"prev_target":12800000},{"emp_no":"0151","name":"平田高志","store":"横浜店","is_mgr":true,"table37":"マネージャー","rank37":"マネージャー","grade37":"等級無","birth_date":"1985/07/15","base_pay":0,"rank_pay":0,"result":169347823,"target":212310029,"achieve":0.7976,"cert_deduct":0,"jinji_cost":0,"dist_rate":0.33,"month_ratio":1.0,"memo":"","cert_allow":0,"prev_salary":0,"prev_target":12800000},{"emp_no":"0009","name":"岩本仁水","store":"横浜店","is_mgr":true,"table37":"マネージャー","rank37":"マネージャー","grade37":"等級無","birth_date":"1965/08/28","base_pay":0,"rank_pay":0,"result":131142871,"target":135840019,"achieve":0.9654,"cert_deduct":0,"jinji_cost":0,"dist_rate":0.33,"month_ratio":1.0,"memo":"","cert_allow":0,"prev_salary":0,"prev_target":15300000},{"emp_no":"0013","name":"栗田勝好","store":"東京店","is_mgr":true,"table37":"マネージャー","rank37":"マネージャー","grade37":"等級無","birth_date":"1977/03/12","base_pay":0,"rank_pay":0,"result":66018442,"target":100725013,"achieve":0.6554,"cert_deduct":0,"jinji_cost":0,"dist_rate":0.33,"month_ratio":1.0,"memo":"","cert_allow":0,"prev_salary":0,"prev_target":12800000},{"emp_no":"0010","name":"小森薫","store":"東京店","is_mgr":true,"table37":"マネージャー","rank37":"マネージャー","grade37":"等級無","birth_date":"1973/01/17","base_pay":0,"rank_pay":0,"result":66018442,"target":100725013,"achieve":0.6554,"cert_deduct":0,"jinji_cost":0,"dist_rate":0.33,"month_ratio":1.0,"memo":"","cert_allow":0,"prev_salary":0,"prev_target":15300000},{"emp_no":"0308","name":"財津友里","store":"ハコ大阪","is_mgr":true,"table37":"マネージャー","rank37":"マネージャー","grade37":"等級無","birth_date":"1986/02/17","base_pay":0,"rank_pay":0,"result":378164243,"target":406732278,"achieve":0.9298,"cert_deduct":0,"jinji_cost":0,"dist_rate":0.3,"month_ratio":1.0,"memo":"","cert_allow":0,"prev_salary":0,"prev_target":12800000},{"emp_no":"0409","name":"北上淳悟","store":"ハコ大阪","is_mgr":true,"table37":"マネージャー","rank37":"マネージャー","grade37":"等級無","birth_date":"1988/11/14","base_pay":0,"rank_pay":0,"result":234519251,"target":214361013,"achieve":1.094,"cert_deduct":0,"jinji_cost":0,"dist_rate":0.3,"month_ratio":1.0,"memo":"","cert_allow":0,"prev_salary":0,"prev_target":12800000},{"emp_no":"0110","name":"福間慎太郎","store":"ハコ山下公園","is_mgr":true,"table37":"マネージャー","rank37":"マネージャー","grade37":"等級無","birth_date":"1984/08/28","base_pay":0,"rank_pay":0,"result":143644992,"target":144171252,"achieve":0.9963,"cert_deduct":0,"jinji_cost":0,"dist_rate":0.3,"month_ratio":1.0,"memo":"","cert_allow":0,"prev_salary":0,"prev_target":12800000},{"emp_no":"0102","name":"廣田凡宗","store":"きがえる","is_mgr":true,"table37":"マネージャー","rank37":"マネージャー","grade37":"等級無","birth_date":"1974/10/22","base_pay":0,"rank_pay":0,"result":154316050,"target":185395374,"achieve":0.8324,"cert_deduct":0,"jinji_cost":0,"dist_rate":0.36,"month_ratio":1.0,"memo":"","cert_allow":0,"prev_salary":0,"prev_target":12800000},{"emp_no":"0104","name":"北山千春","store":"きがえる大阪店","is_mgr":true,"table37":"マネージャー","rank37":"マネージャー","grade37":"等級無","birth_date":"1975/01/11","base_pay":0,"rank_pay":0,"result":75749775,"target":77923338,"achieve":0.9721,"cert_deduct":0,"jinji_cost":0,"dist_rate":0.36,"month_ratio":1.0,"memo":"","cert_allow":0,"prev_salary":0,"prev_target":15300000},{"emp_no":"0127","name":"柴田桂佑","store":"きがえる吹田店","is_mgr":true,"table37":"マネージャー","rank37":"マネージャー","grade37":"等級無","birth_date":"1996/07/03","base_pay":0,"rank_pay":0,"result":78566275,"target":107472036,"achieve":0.731,"cert_deduct":0,"jinji_cost":0,"dist_rate":0.36,"month_ratio":1.0,"memo":"","cert_allow":0,"prev_salary":0,"prev_target":15300000},{"emp_no":"0012","name":"小西睦","store":"きがえる吹田店","is_mgr":true,"table37":"マネージャー","rank37":"マネージャー","grade37":"等級無","birth_date":"1968/07/17","base_pay":0,"rank_pay":0,"result":78566275,"target":107472036,"achieve":0.731,"cert_deduct":0,"jinji_cost":0,"dist_rate":0.36,"month_ratio":1.0,"memo":"","cert_allow":0,"prev_salary":0,"prev_target":15300000},{"emp_no":"0007","name":"坂本雅義","store":"関東","is_mgr":true,"table37":"マネージャー","rank37":"マネージャー","grade37":"等級無","birth_date":"1974/06/22","base_pay":0,"rank_pay":0,"result":197161313,"target":236565032,"achieve":0.8334,"cert_deduct":0,"jinji_cost":0,"dist_rate":0.33,"month_ratio":1.0,"memo":"","cert_allow":0,"prev_salary":0,"prev_target":0},{"emp_no":"1003","name":"樋口佳予","store":"関西+ハコ横","is_mgr":true,"table37":"マネージャー","rank37":"マネージャー","grade37":"等級無","birth_date":"1970/10/26","base_pay":0,"rank_pay":0,"result":952075663,"target":950025984,"achieve":1.0022,"cert_deduct":0,"jinji_cost":0,"dist_rate":0.3,"month_ratio":1.0,"memo":"","cert_allow":0,"prev_salary":0,"prev_target":0},{"emp_no":"0101","name":"溝端一木","store":"全社","is_mgr":true,"table37":"マネージャー","rank37":"マネージャー","grade37":"等級無","birth_date":"1976/02/22","base_pay":0,"rank_pay":0,"result":1149236976,"target":1186591016,"achieve":0.9685,"cert_deduct":0,"jinji_cost":0,"dist_rate":0.33,"month_ratio":1.0,"memo":"","cert_allow":0,"prev_salary":0,"prev_target":0},{"emp_no":"0301","name":"宇治田優亮","store":"全社","is_mgr":true,"table37":"マネージャー","rank37":"マネージャー","grade37":"等級無","birth_date":"1974/07/19","base_pay":0,"rank_pay":0,"result":1149236976,"target":1186591016,"achieve":0.9685,"cert_deduct":0,"jinji_cost":0,"dist_rate":0.33,"month_ratio":1.0,"memo":"","cert_allow":0,"prev_salary":0,"prev_target":0}];
@@ -325,7 +350,7 @@ async function upsert(empNo,fields){
 async function loadData(){
   setSyncStatus("loading","キントーンから取得中...");
   try{
-    const data=await gasGet("totalCount=true&query=order+by+emp_no+asc&fields[0]=emp_no&fields[1]=hope_delta&fields[2]=hope_rank&fields[3]=hope_grade&fields[4]=comment&fields[5]=meet_delta&fields[6]=meet_rank&fields[7]=meet_grade&fields[8]=meet_memo&fields[9]=final_delta&fields[10]=final_rank&fields[11]=final_grade&fields[12]=final_memo&fields[13]=cert_allow&fields[14]=cert_deduct&fields[15]=dist_rate&fields[16]=month_ratio&fields[17]=base_pay&fields[18]=rank_pay&fields[19]=memo&fields[20]=evaluations");
+    const data=await gasGet("totalCount=true&query=order+by+emp_no+asc&fields[0]=emp_no&fields[1]=hope_delta&fields[2]=hope_rank&fields[3]=hope_grade&fields[4]=comment&fields[5]=meet_delta&fields[6]=meet_rank&fields[7]=meet_grade&fields[8]=meet_memo&fields[9]=final_delta&fields[10]=final_rank&fields[11]=final_grade&fields[12]=final_memo&fields[13]=cert_allow&fields[14]=cert_deduct&fields[15]=dist_rate&fields[16]=month_ratio&fields[17]=base_pay&fields[18]=rank_pay&fields[19]=memo&fields[20]=evaluations&fields[21]=last_editor&fields[22]=edit_log");
     data.records.forEach(function(rec){
       const empNo=rec.emp_no?rec.emp_no.value:"";
       const emp=EMPS.find(function(e){return e.emp_no===empNo;});
@@ -354,6 +379,8 @@ async function loadData(){
       if(fv("rank_pay"))emp.rank_pay=Number(fv("rank_pay"))||emp.rank_pay;
       if(rec.memo&&rec.memo.value!==undefined)emp.memo=rec.memo.value;
       if(rec.evaluations&&rec.evaluations.value!==undefined)emp.evaluations=rec.evaluations.value;
+      if(rec.last_editor&&rec.last_editor.value!==undefined)emp.last_editor=rec.last_editor.value;
+      if(rec.edit_log&&rec.edit_log.value!==undefined)emp.edit_log=rec.edit_log.value;
     });
     setSyncStatus("ok","同期完了（"+data.records.length+"件）");
     const now=new Date();
@@ -497,6 +524,7 @@ function init(){
   ["meet-sf","final-sf","mig-sf"].forEach(function(id){
     const el=document.getElementById(id);STORES.forEach(function(s){el.add(new Option(s,s));});
   });
+  if(isAdmin()){var au=document.getElementById("tab-audit");if(au)au.style.display="";}
   updateProg();loadData();
 }
 
@@ -504,7 +532,7 @@ function showTab(t){
   if(t==="final"&&!finalUnlocked){tryUnlock();return;}
   if(t==="mgr"&&!mgrUnlocked){tryUnlockMgr();return;}
   if(t==="eval"&&!evalUnlocked){tryUnlockEval();return;}
-  ["input","meet","final","migrate","store","mgr","eval","admin"].forEach(function(id){
+  ["input","meet","final","migrate","store","mgr","eval","audit","admin"].forEach(function(id){
     document.getElementById("v-"+id).style.display=id===t?"block":"none";
     const tb=document.getElementById("tab-"+id);
     if(tb)tb.classList.toggle("on",id===t);
@@ -512,6 +540,7 @@ function showTab(t){
   document.getElementById("modal-area").style.display="none";
   if(t==="mgr")renderMgr();
   if(t==="eval")renderEval();
+  if(t==="audit")renderAudit();
   if(t==="meet")renderMeet();
   if(t==="final")renderFinal();
   if(t==="migrate")renderMigrate();
@@ -598,7 +627,8 @@ async function submitEval(){
   var newRaw=buildEvals(arr);
   emp.evaluations=newRaw;
   try{
-    await upsert(emp.emp_no,{name:{value:emp.name},evaluations:{value:newRaw}});
+    const evLog=appendEditLog(emp,"eval_"+name,score);
+    await upsert(emp.emp_no,{name:{value:emp.name},evaluations:{value:newRaw},last_editor:{value:editorLabel()},edit_log:{value:evLog}});
     setSyncStatus("ok","評価を保存しました");
     document.getElementById("eval-msg").style.display="inline";
     setTimeout(function(){document.getElementById("eval-msg").style.display="none";},2000);
@@ -728,7 +758,8 @@ async function saveM(){
   const btn=document.getElementById("save-btn");
   btn.textContent="保存中...";btn.disabled=true;
   try{
-    await upsert(emp.emp_no,{name:{value:emp.name},store:{value:emp.store},hope_delta:{value:hD},hope_rank:{value:hR},hope_grade:{value:hG},comment:{value:c}});
+    const mLog=appendEditLog(emp,"hope",hD+"/"+hR+"/"+hG);
+    await upsert(emp.emp_no,{name:{value:emp.name},store:{value:emp.store},hope_delta:{value:hD},hope_rank:{value:hR},hope_grade:{value:hG},comment:{value:c},last_editor:{value:editorLabel()},edit_log:{value:mLog}});
     if(!saves[curEmp])saves[curEmp]={};
     saves[curEmp].hDelta=hD;saves[curEmp].hRank=hR;saves[curEmp].hGrade=hG;saves[curEmp].comment=c;
     document.getElementById("m-smsg").style.display="block";
@@ -775,23 +806,55 @@ function calcPreview(empName, rank, grade){
   return "<div style=\"font-size:11px;color:#0D47A1;margin-top:2px\">→"+m.tbl+" "+m.ng+" 新総額:"+yen(m.nt)+" <span class=\"badge "+dc+"\">"+( m.diff>=0?"+":"")+yen(m.diff)+"</span>"+ntStr+"</div>";
 }
 const saveTimer={};
+function editorLabel(){return currentUser?(currentUser.name||currentUser.username):"unknown";}
+function renderAudit(){
+  var all=[];
+  EMPS.forEach(function(emp){
+    if(!emp.edit_log)return;
+    emp.edit_log.split("\n").forEach(function(line){
+      if(!line)return;
+      var p=line.split("|");
+      if(p.length<4)return;
+      all.push({ts:p[0],name:emp.name,editor:p[1],field:p[2],val:p.slice(3).join("|")});
+    });
+  });
+  all.sort(function(a,b){return a.ts<b.ts?1:-1;});
+  var rows=all.slice(0,500).map(function(r){
+    return "<tr><td style=\"font-size:11px;color:#555\">"+r.ts+"</td><td style=\"font-weight:700\">"+r.name+"</td><td style=\"font-size:11px\">"+r.editor+"</td><td style=\"font-size:11px;color:#1565C0\">"+r.field+"</td><td style=\"font-size:11px\">"+String(r.val).slice(0,120)+"</td></tr>";
+  }).join("");
+  document.getElementById("audit-tb").innerHTML=rows||"<tr><td colspan=\"5\" style=\"text-align:center;padding:30px;color:#BDBDBD\">履歴がありません</td></tr>";
+}
+function appendEditLog(emp,field,val){
+  if(!emp)return"";
+  var ts=new Date().toLocaleString("ja-JP",{hour12:false});
+  var line=[ts,editorLabel(),field,String(val).slice(0,50)].join("|");
+  var lines=(emp.edit_log||"").split("\n").filter(function(l){return l;});
+  lines.push(line);
+  lines=lines.slice(-30);
+  emp.edit_log=lines.join("\n");
+  return emp.edit_log;
+}
 async function svMemo(empNo,name,val){
   const emp=EMPS.find(function(e){return e.name===name;});if(emp)emp.memo=val;
   updateImpact();
+  const newLog=appendEditLog(emp,"memo",val);
   clearTimeout(saveTimer["memo_"+empNo]);
   saveTimer["memo_"+empNo]=setTimeout(async function(){
-    try{await upsert(empNo,{name:{value:name},memo:{value:val}});setSyncStatus("ok","備考を保存");}
+    try{await upsert(empNo,{name:{value:name},memo:{value:val},last_editor:{value:editorLabel()},edit_log:{value:newLog}});setSyncStatus("ok","備考を保存");}
     catch(e){setSyncStatus("err","保存エラー: "+e.message);}
   },800);
 }
 async function svK(empNo,name,lk,kk,val){
   if(!saves[name])saves[name]={};saves[name][lk]=val;
   updateImpact();
+  const emp=EMPS.find(function(e){return e.name===name;});
+  const newLog=appendEditLog(emp,kk,val);
   clearTimeout(saveTimer[empNo]);
   saveTimer[empNo]=setTimeout(async function(){
     try{
       const fields={};fields[kk]={value:val};fields.name={value:name};
-      await upsert(empNo,fields);setSyncStatus("ok","保存済み");
+      fields.last_editor={value:editorLabel()};fields.edit_log={value:newLog};
+      await upsert(empNo,fields);setSyncStatus("ok","保存済み by "+editorLabel());
     }catch(e){setSyncStatus("err","保存エラー: "+e.message);}
   },800);
 }
@@ -892,7 +955,43 @@ function exportCSV(){
   const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));a.download="38期昇降格査定.csv";a.click();
 }
 
-init();
+// === MSAL Microsoft Authentication ===
+const MSAL_CONFIG={auth:{clientId:"6e2df2a0-bfbd-4ad3-80b7-11d678872d28",authority:"https://login.microsoftonline.com/45878bb2-84d5-46e8-b4c2-d50f6b61e4a9",redirectUri:"https://sunaidxpj.github.io/sunreform-app/"},cache:{cacheLocation:"sessionStorage"}};
+const ADMIN_EMAILS=["t.onishi@sunreform.jp"];
+let msalInstance=null,currentUser=null;
+function isAdmin(){return !!(currentUser&&ADMIN_EMAILS.includes((currentUser.username||"").toLowerCase()));}
+function userLabel(){return currentUser?(currentUser.name||currentUser.username):"unknown";}
+async function initAuth(){
+  try{
+    msalInstance=new msal.PublicClientApplication(MSAL_CONFIG);
+    await msalInstance.initialize();
+    const resp=await msalInstance.handleRedirectPromise();
+    if(resp&&resp.account)msalInstance.setActiveAccount(resp.account);
+    const accounts=msalInstance.getAllAccounts();
+    if(accounts.length>0){
+      currentUser=accounts[0];
+      document.getElementById("login-gate").style.display="none";
+      document.getElementById("app-root").style.display="block";
+      document.getElementById("user-info").textContent="👤 "+(currentUser.name||currentUser.username);
+      init();
+    }else{
+      document.getElementById("login-gate").style.display="flex";
+      document.getElementById("app-root").style.display="none";
+    }
+  }catch(e){
+    document.getElementById("login-err").textContent="認証初期化エラー: "+e.message;
+    document.getElementById("login-gate").style.display="flex";
+  }
+}
+async function loginMS(){
+  try{await msalInstance.loginRedirect({scopes:["User.Read"]});}
+  catch(e){document.getElementById("login-err").textContent="ログイン失敗: "+e.message;}
+}
+async function logoutMS(){
+  if(!confirm("サインアウトしますか?"))return;
+  await msalInstance.logoutRedirect({postLogoutRedirectUri:"https://sunaidxpj.github.io/sunreform-app/"});
+}
+initAuth();
 </script>
 </body>
 </html>
