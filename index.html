@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>38期 昇降格査定システム</title>
-<script src="https://alcdn.msauth.net/browser/3.17.0/js/msal-browser.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3/lib/msal-browser.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif;font-size:14px;background:#F5F5F5;color:#212121}
@@ -1032,6 +1032,7 @@ function isAdmin(){return !!(currentUser&&ADMIN_EMAILS.includes((currentUser.use
 function userLabel(){return currentUser?(currentUser.name||currentUser.username):"unknown";}
 async function initAuth(){
   try{
+    if(typeof msal==='undefined'){throw new Error("MSALライブラリが読み込めていません (CDN通信エラーの可能性)");}
     msalInstance=new msal.PublicClientApplication(MSAL_CONFIG);
     await msalInstance.initialize();
     const resp=await msalInstance.handleRedirectPromise();
