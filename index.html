@@ -393,7 +393,8 @@ async function loadData(){
     const data=await gasGet(fieldsQ);
     data.records.forEach(function(rec){
       const empNo=rec.emp_no?rec.emp_no.value:"";
-      const emp=EMPS.find(function(e){return e.emp_no===empNo;});
+      // Kintone は NUMBER 型で zero-padding を落とす（"0114" → "114"）ので数値比較
+      const emp=EMPS.find(function(e){return Number(e.emp_no)===Number(empNo);});
       if(!emp)return;
       const n=emp.name;
       if(!saves[n])saves[n]={};
