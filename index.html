@@ -118,8 +118,8 @@ tr:hover td{background:#FAFAFA}
   <div class="tab on" id="tab-input" onclick="showTab(&#34;input&#34;)">①上長入力</div>
   <div class="tab" id="tab-meet" onclick="showTab(&#34;meet&#34;)">②会議（暫定）</div>
   <div class="tab locked" id="tab-final" onclick="tryUnlock()">🔒 ③役員会（確定）</div>
-  <div class="tab" id="tab-migrate" onclick="showTab(&#34;migrate&#34;)">7月移行計算</div>
-  <div class="tab" id="tab-newtable" onclick="showTab(&#34;newtable&#34;)">📋 新給与テーブル(7月)</div>
+  <div class="tab locked" id="tab-migrate" onclick="tryUnlockTab(&#34;migrate&#34;)">🔒 ④新テーブル移行</div>
+  <div class="tab locked" id="tab-newtable" onclick="tryUnlockTab(&#34;newtable&#34;)">🔒 📋 新給与テーブル(7月)</div>
   <div class="tab" id="tab-store" onclick="showTab(&#34;store&#34;)">店舗別比較</div>
   <div class="tab locked" id="tab-eval" onclick="tryUnlockEval()">🔒 マネ事前評価</div>
   <div class="tab locked" id="tab-mgr" onclick="tryUnlockMgr()">🔒 マネージャー査定</div>
@@ -181,8 +181,8 @@ tr:hover td{background:#FAFAFA}
   </tr></thead><tbody id="final-tb"></tbody></table></div></div>
 </div>
 <div id="v-migrate" style="display:none">
-  <div class="card"><div class="ct">7月新テーブル移行計算 (2026/7/1 施行 v15_2)</div>
-    <div style="font-size:12px;color:#757575;margin-bottom:10px">旧総額（年齢給＋役職等級手当＋LP¥45,000）を維持したまま新テーブルの等級を逆算。減給者ゼロ、最大差額は号数切り上げ誤差のみ。</div>
+  <div class="card"><div class="ct">④新テーブル移行 (2026/7/1 施行 v15_2)</div>
+    <div style="font-size:12px;color:#757575;margin-bottom:10px">旧総額（年齢給＋役職等級手当＋LP¥45,000）を維持したまま新テーブルの等級を逆算。新役職・新等級は手動で上書き可能（Kintoneに保存）。減給者ゼロ、最大差額は号数切り上げ誤差のみ。</div>
     <div class="fr">
       <select id="mig-sf" onchange="renderMigrate()"><option value="">全店舗</option></select>
       <select id="mig-ff" onchange="renderMigrate()"><option value="">全員</option><option value="確定済">③確定済のみ</option></select>
@@ -438,8 +438,8 @@ async function loadData(){
   setSyncStatus("loading","キントーンから取得中...");
   try{
     const mgrOK=canAccess("mgr");
-    var fieldsQ="totalCount=true&query=order+by+emp_no+asc&fields[0]=emp_no&fields[1]=hope_delta&fields[2]=hope_rank&fields[3]=hope_grade&fields[4]=comment&fields[5]=meet_delta&fields[6]=meet_rank&fields[7]=meet_grade&fields[8]=meet_memo&fields[9]=final_delta&fields[10]=final_rank&fields[11]=final_grade&fields[12]=final_memo&fields[13]=cert_allow&fields[14]=cert_deduct&fields[15]=dist_rate&fields[16]=month_ratio&fields[17]=base_pay&fields[18]=rank_pay&fields[19]=memo&fields[20]=evaluations&fields[21]=last_editor&fields[22]=edit_log";
-    if(mgrOK)fieldsQ+="&fields[23]=prev_salary";
+    var fieldsQ="totalCount=true&query=order+by+emp_no+asc&fields[0]=emp_no&fields[1]=hope_delta&fields[2]=hope_rank&fields[3]=hope_grade&fields[4]=comment&fields[5]=meet_delta&fields[6]=meet_rank&fields[7]=meet_grade&fields[8]=meet_memo&fields[9]=final_delta&fields[10]=final_rank&fields[11]=final_grade&fields[12]=final_memo&fields[13]=cert_allow&fields[14]=cert_deduct&fields[15]=dist_rate&fields[16]=month_ratio&fields[17]=base_pay&fields[18]=rank_pay&fields[19]=memo&fields[20]=evaluations&fields[21]=last_editor&fields[22]=edit_log&fields[23]=new_rank&fields[24]=new_grade";
+    if(mgrOK)fieldsQ+="&fields[25]=prev_salary";
     const data=await gasGet(fieldsQ);
     data.records.forEach(function(rec){
       const empNo=rec.emp_no?rec.emp_no.value:"";
@@ -464,6 +464,9 @@ async function loadData(){
         if(fv("final_grade"))saves[n].fGrade=fv("final_grade");
         if(fv("final_memo"))saves[n].fMemo=fv("final_memo");
       }
+      // 新テーブル移行 (④新テーブル移行タブで上書き保存可能)
+      if(fv("new_rank"))saves[n].nRank=fv("new_rank");
+      if(fv("new_grade"))saves[n].nGrade=fv("new_grade");
       if(isMgr(emp)&&mgrOK&&fv("prev_salary"))emp.prev_salary=Number(fv("prev_salary"))||0;
       // 給与パラメータをEMPS配列に反映（キントーンが最新データ）
       if(fv("cert_allow"))emp.cert_allow=Number(fv("cert_allow"))||0;
@@ -572,6 +575,7 @@ const PW="morie8386";
 let permUnlocked=false,pwTarget="perm";
 function denyAlert(area){alert("このタブへのアクセス権限がありません。\n管理者の「⚙️ 権限設定」で許可メールに追加が必要です。\n\nログイン中: "+(curEmail()||"(未サインイン)"));}
 function tryUnlock(){if(canAccess("final")){showTab("final");}else{denyAlert("final");}}
+function tryUnlockTab(t){if(canAccess("final")){showTab(t);}else{denyAlert("final");}}
 function tryUnlockMgr(){if(canAccess("mgr")){showTab("mgr");}else{denyAlert("mgr");}}
 function tryUnlockEval(){if(canAccess("eval")){showTab("eval");}else{denyAlert("eval");}}
 function tryUnlockPerm(){
@@ -638,6 +642,8 @@ function init(){
 
 function showTab(t){
   if(t==="final"&&!canAccess("final")){denyAlert("final");return;}
+  if(t==="migrate"&&!canAccess("final")){denyAlert("final");return;}
+  if(t==="newtable"&&!canAccess("final")){denyAlert("final");return;}
   if(t==="mgr"&&!canAccess("mgr")){denyAlert("mgr");return;}
   if(t==="eval"&&!canAccess("eval")){denyAlert("eval");return;}
   if(t==="perm"&&!permUnlocked){tryUnlockPerm();return;}
@@ -1383,12 +1389,26 @@ function renderMigrate(){
     const cs=fR&&fG?fR+" "+fG:"（査定前）";
     const age=getAge(emp.birth_date);
     if(emp.base_pay===0&&emp.rank_pay===0)return "<tr><td style=\"font-weight:700\">"+emp.name+"</td><td style=\"font-size:11px\">"+emp.store+"</td><td style=\"font-size:11px\">"+emp.rank37+" "+emp.grade37+"</td><td style=\"font-size:11px\">"+cs+"</td><td colspan=\"11\" style=\"color:#BDBDBD;font-size:12px\">給与データなし</td></tr>";
-    const m=calcMig(emp,fR,fG),dc=m.diff===0?"bb":m.diff>0?"bg":"br";
+    // calcMig での自動推奨
+    const m=calcMig(emp,fR,fG);
+    // 上書き保存値があれば優先
+    const nRank=s.nRank||m.rn;
+    const nGrade=s.nGrade||m.ng;
+    // 上書き値で新総額・差額・来期利益設定を再計算
+    const adj=adjustedMig(emp,nRank,nGrade,m.tbl);
+    const dc=adj.diff===0?"bb":adj.diff>0?"bg":"br";
     const oldRoleStr=emp.rank37||"";
-    const roleChanged=oldRoleStr&&RANK_MAP[oldRoleStr]&&RANK_MAP[oldRoleStr]!==m.rn;
-    const roleCell="<td style=\"font-size:12px"+(roleChanged?";background:#FFF3E0;color:#E65100;font-weight:700":"")+"\">"+m.rn+"</td>";
-    return "<tr>"
-      +"<td style=\"font-weight:700\">"+emp.name+"</td>"
+    const roleChanged=oldRoleStr&&RANK_MAP[oldRoleStr]&&RANK_MAP[oldRoleStr]!==nRank;
+    // 役職セレクト
+    var roleOpts=NEW_ROLES.map(function(r){return '<option value="'+r+'"'+(r===nRank?' selected':'')+'>'+r+'</option>';}).join("");
+    var roleSel='<select onchange="onMigRankChange(this,\''+emp.emp_no+'\',\''+emp.name+'\')" style="font-size:11px;padding:2px;width:100%'+(roleChanged?';background:#FFF3E0;color:#E65100;font-weight:700':'')+'" class="mig-rank-sel">'+roleOpts+'</select>';
+    // 等級セレクト
+    var gradeOpts=NEW_GRADE_CODES.map(function(g){return '<option value="'+g+'"'+(g===nGrade?' selected':'')+'>'+g+'</option>';}).join("");
+    var gradeSel='<select onchange="onMigGradeChange(this,\''+emp.emp_no+'\',\''+emp.name+'\')" style="font-size:11px;padding:2px;width:100%;font-weight:700;color:#1565C0" class="mig-grade-sel">'+gradeOpts+'</select>';
+    // 上書きフラグ表示
+    var overrideBadge=(s.nRank&&s.nRank!==m.rn)||(s.nGrade&&s.nGrade!==m.ng)?'<span class="badge bb" style="font-size:9px;margin-left:3px" title="手動上書き">編</span>':'';
+    return "<tr data-empno=\""+emp.emp_no+"\" data-name=\""+emp.name.replace(/"/g,'&quot;')+"\" data-tbl=\""+m.tbl+"\">"
+      +"<td style=\"font-weight:700\">"+emp.name+overrideBadge+"</td>"
       +"<td style=\"font-size:11px\">"+emp.store+"</td>"
       +"<td style=\"font-size:11px\">"+emp.rank37+" "+emp.grade37+"</td>"
       +"<td style=\"font-size:11px;color:#C97A2E;font-weight:700\">"+cs+"</td>"
@@ -1396,15 +1416,68 @@ function renderMigrate(){
       +"<td style=\"font-size:11px\">"+age+"歳</td>"
       +"<td style=\"font-size:12px\">"+yen(m.ot)+"</td>"
       +"<td style=\"font-size:12px;color:#1565C0;font-weight:700\">"+m.tbl+"</td>"
-      +"<td style=\"font-size:12px\">"+yen(m.na)+"</td>"
-      +roleCell
-      +"<td style=\"font-size:12px\">"+yen(m.rp)+"</td>"
-      +"<td style=\"font-weight:700;color:#1565C0\">"+m.ng+"</td>"
-      +"<td style=\"font-weight:700\">"+yen(m.nt)+"</td>"
-      +"<td><span class=\"badge "+dc+"\">"+(m.diff>=0?"+":"")+yen(m.diff)+"</span></td>"
-      +"<td style=\"font-size:12px;color:#C97A2E;font-weight:700\">"+yen(m.nextTarget||0)+"</td>"
+      +"<td class=\"mig-na\" style=\"font-size:12px\">"+yen(adj.na)+"</td>"
+      +"<td>"+roleSel+"</td>"
+      +"<td class=\"mig-rp\" style=\"font-size:12px\">"+yen(adj.rp)+"</td>"
+      +"<td>"+gradeSel+"</td>"
+      +"<td class=\"mig-nt\" style=\"font-weight:700\">"+yen(adj.nt)+"</td>"
+      +"<td class=\"mig-diff\"><span class=\"badge "+dc+"\">"+(adj.diff>=0?"+":"")+yen(adj.diff)+"</span></td>"
+      +"<td class=\"mig-nxt\" style=\"font-size:12px;color:#C97A2E;font-weight:700\">"+yen(adj.nextTarget||0)+"</td>"
       +"</tr>";
   }).join("");
+}
+// 新役職・新等級の選択肢
+const NEW_ROLES=["グループリーダー","チームリーダー","サブリーダー","１級メンバー","２級メンバー","３級メンバー"];
+const NEW_GRADE_CODES=(function(){var arr=[];["G","F","E","D","C","B","A","S"].forEach(function(r){for(var n=1;n<=10;n++)arr.push(r+"-"+n+"号");});return arr;})();
+// 上書き値からの再計算 (calcMig の同じロジックを new_rank/new_grade 直接指定で実行)
+function adjustedMig(emp,newRank,newGrade,newTbl){
+  var ot=emp.base_pay+emp.rank_pay+45000;
+  if(isPart(emp)){
+    return{na:0,rp:emp.rank_pay,nt:ot,diff:0,nextTarget:Math.ceil(ot*12/(emp.dist_rate||0.33)/100000)*100000};
+  }
+  var na=getAP(getAge(emp.birth_date),newTbl);
+  var rp=RANK_PAY[newRank]||0;
+  // 等級手当を新テーブルから取得
+  var gp=newTbl==="①営業"?GP1:newTbl==="②設計"?GP2:GP3;
+  var gradeKey=newGrade.replace("号","");
+  var ngp=gp[gradeKey]||0;
+  var nt=na+rp+ngp+45000;
+  var certAllow=emp.cert_allow||0,certDeduct=emp.cert_deduct||0;
+  var distRate=emp.dist_rate||0.33,monthRatio=emp.month_ratio||1.0;
+  var jinji=(nt+certAllow-certDeduct)*14*1.2*monthRatio;
+  var nextTarget=Math.ceil(jinji/distRate/100000)*100000;
+  return{na:na,rp:rp,ngp:ngp,nt:nt,diff:nt-ot,nextTarget:nextTarget};
+}
+function onMigRankChange(sel,empNo,name){
+  var tr=sel.closest("tr");
+  var emp=EMPS.find(function(e){return e.emp_no===empNo;});
+  var gradeSel=tr.querySelector(".mig-grade-sel");
+  var tbl=tr.getAttribute("data-tbl");
+  svK(empNo,name,'nRank','new_rank',sel.value);
+  // ハイライト
+  var oldRole=emp.rank37||""; var changed=oldRole&&RANK_MAP[oldRole]&&RANK_MAP[oldRole]!==sel.value;
+  sel.style.background=changed?'#FFF3E0':'';
+  sel.style.color=changed?'#E65100':'';
+  sel.style.fontWeight=changed?'700':'';
+  // 再計算
+  updateMigRow(tr,emp,sel.value,gradeSel.value,tbl);
+}
+function onMigGradeChange(sel,empNo,name){
+  var tr=sel.closest("tr");
+  var emp=EMPS.find(function(e){return e.emp_no===empNo;});
+  var rankSel=tr.querySelector(".mig-rank-sel");
+  var tbl=tr.getAttribute("data-tbl");
+  svK(empNo,name,'nGrade','new_grade',sel.value);
+  updateMigRow(tr,emp,rankSel.value,sel.value,tbl);
+}
+function updateMigRow(tr,emp,newRank,newGrade,tbl){
+  var adj=adjustedMig(emp,newRank,newGrade,tbl);
+  tr.querySelector(".mig-na").textContent=yen(adj.na);
+  tr.querySelector(".mig-rp").textContent=yen(adj.rp);
+  tr.querySelector(".mig-nt").textContent=yen(adj.nt);
+  var dc=adj.diff===0?"bb":adj.diff>0?"bg":"br";
+  tr.querySelector(".mig-diff").innerHTML='<span class="badge '+dc+'">'+(adj.diff>=0?"+":"")+yen(adj.diff)+'</span>';
+  tr.querySelector(".mig-nxt").textContent=yen(adj.nextTarget||0);
 }
 
 // === 2026年7月 新給与テーブル改定案 v15_2 (in-app reference) ===
