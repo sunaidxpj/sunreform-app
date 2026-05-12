@@ -148,6 +148,7 @@ tr:hover td{background:#FAFAFA}
       <select id="meet-sf" onchange="renderMeet()"><option value="">全店舗</option></select>
       <select id="meet-rf" onchange="renderMeet()"><option value="">全役職</option></select>
       <select id="meet-ff" onchange="renderMeet()"><option value="">全員</option><option value="入力済">①入力済のみ</option><option value="役職変更">役職変更あり</option></select>
+      <button class="btn btn-sm" onclick="clearMeetFilters()" title="絞り込みをクリア">↻ クリア</button>
     </div>
   </div>
   <div id="meet-summary"></div>
@@ -905,6 +906,12 @@ async function saveM(){
 }
 function closeM(){document.getElementById("modal-area").style.display="none";curEmp=null;}
 
+function clearMeetFilters(){
+  document.getElementById("meet-sf").value="";
+  document.getElementById("meet-rf").value="";
+  document.getElementById("meet-ff").value="";
+  renderMeet();
+}
 function renderMeet(){
   const sf=document.getElementById("meet-sf").value,ff=document.getElementById("meet-ff").value;
   const rf=document.getElementById("meet-rf").value;
