@@ -1108,16 +1108,31 @@ function renderMeet(){
     return "<tr><td style=\"font-weight:700\">"+emp.name+"</td><td style=\"font-size:11px\">"+emp.store+"</td><td style=\"font-size:11px\">"+emp.rank37+" "+emp.grade37+"</td><td>"+pct(emp.achieve)+"</td><td style=\"font-size:11px\">"+au.delta+" "+au.rank+" "+au.grade+(au.roleChanged?" <span class=\"badge borange\">★</span>":"")+"</td><td style=\"font-size:11px"+(s.comment?";cursor:help;text-decoration:underline dotted;text-decoration-color:#90CAF9":"")+"\" title=\""+hopeTip+"\">"+hs+"</td><td><input type=\"text\" value=\""+(emp.memo||"").replace(/\"/g,'&quot;')+"\" onchange=\"svMemo('"+emp.emp_no+"','"+emp.name+"',this.value)\" style=\"font-size:11px;padding:3px;width:100%;color:#E65100\" placeholder=\"備考\"></td><td style=\"text-align:center\"><span class=\"meet-delta-cell\" style=\"font-weight:700;font-size:13px;color:#1565C0\">"+mDeltaAuto+"</span></td><td><select onchange=\"onMeetRankChange(this,'"+emp.emp_no+"','"+emp.name+"')\" style=\"font-size:11px;padding:3px\" class=\"meet-rank-sel\">"+rOpts+"</select></td><td><select onchange=\"onMeetGradeChange(this,'"+emp.emp_no+"','"+emp.name+"')\" style=\"font-size:11px;padding:3px\" class=\"meet-grade-sel\">"+gOpts+"</select></td><td><input type=\"text\" value=\""+(s.mMemo||"")+"\" onchange=\"svK('"+emp.emp_no+"','"+emp.name+"','mMemo','meet_memo',this.value)\" style=\"font-size:11px;padding:3px\" placeholder=\"メモ\"></td><td class=\"meet-preview\">"+previewHtml+"</td><td>"+stBadge(getStatus(emp.name))+"</td></tr>";
   }).join("");
 }
-// マネージャーの対象店舗（emp.store と異なる場合の上書き）
+// マネージャーの対象店舗（emp.store と異なる場合の上書き、現在=37期）
 const MGR_TARGET_AREA={
-  '0115':'大阪店+京都店',           // 臼井祐輔
-  '0111':'神戸店+西宮店',           // 井上大蔵
-  '0308':'ハコ大阪+ハコ横',         // 財津友里
-  '0151':'横浜店+東京店',           // 平田高志
-  '0007':'横浜店+東京店',           // 坂本雅義
+  '0007':'横浜店+東京店',           // 坂本雅義（関東統括）
   '0102':'きがえる大阪+きがえる吹田' // 廣田凡宗
 };
-function mgrTargetArea(emp){return (emp&&MGR_TARGET_AREA[emp.emp_no])||(emp?emp.store:'');}
+// 36期から37期で担当範囲が変わったマネージャー（{prev:36期, curr:37期}）
+const MGR_HISTORY={
+  '0115':{prev:'大阪店',           curr:'大阪店+京都店'},      // 臼井祐輔（拡大）
+  '0111':{prev:'神戸店',           curr:'神戸店+西宮店'},      // 井上大蔵（拡大）
+  '0151':{prev:'横浜店',           curr:'横浜店+東京店'},      // 平田高志（拡大）
+  '0105':{prev:'西宮店',           curr:'京都店'},             // 橋本智洋（異動）
+  '0308':{prev:'ハコ大阪+ハコ横',  curr:'ハコ大阪'}            // 財津友里（縮小）
+};
+function mgrTargetArea(emp){
+  if(!emp)return '';
+  var hist=MGR_HISTORY[emp.emp_no];
+  if(hist){
+    var sym=hist.prev===hist.curr?'':' ▲ ';
+    if(hist.curr.length>hist.prev.length)sym=' ⤴ '; // 拡大
+    else if(hist.curr.length<hist.prev.length)sym=' ⤵ '; // 縮小
+    else sym=' ↔ '; // 異動
+    return '<div style="line-height:1.25"><div><b style="color:#1565C0">'+hist.curr+'</b></div><div style="font-size:10px;color:#888;font-style:italic">'+sym+'旧 '+hist.prev+'</div></div>';
+  }
+  return MGR_TARGET_AREA[emp.emp_no]||emp.store||'';
+}
 function formatSalaryPreview(monthly,diff){
   var dc=diff===0?"#1565C0":diff>0?"#2E7D32":"#C62828";
   var sign=diff>=0?"+":"";
