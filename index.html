@@ -241,6 +241,11 @@ tr:hover td{background:#FAFAFA}
           <option value="1">1 (要改善)</option>
         </select>
       </div>
+      <div class="field" style="flex:0 0 120px"><label>把握度 <span style="color:#E53935">*</span></label>
+        <select id="eval-familiarity" style="width:100%;padding:6px">
+          <option value="">--</option>
+        </select>
+      </div>
     </div>
     <div class="field"><label>コメント (具体例を交えて)</label>
       <textarea id="eval-comment" style="width:100%;padding:6px;min-height:60px" placeholder="例: 現場対応は早いが、提出物の精度が課題"></textarea>
@@ -575,6 +580,11 @@ function init(){
     var rf=document.getElementById("meet-rf");
     Object.keys(ranks).sort().forEach(function(r){rf.add(new Option(r,r));});
   })();
+  // マネ事前評価タブの把握度プルダウン（0〜100% 5%刻み）
+  (function(){
+    var ef=document.getElementById("eval-familiarity");if(!ef)return;
+    for(var p=100;p>=0;p-=5)ef.add(new Option(p+"%",p));
+  })();
   if(isAdmin()){
     var au=document.getElementById("tab-audit");if(au)au.style.display="";
     var pm=document.getElementById("tab-perm");if(pm)pm.style.display="";
@@ -653,11 +663,21 @@ function parseEvals(raw){
   return raw.split("\n").map(function(line){
     var p=line.split("|");
     if(p.length<2)return null;
-    return{name:p[0]||"",score:Number(p[1])||0,comment:p[2]||"",date:p[3]||""};
+    // 新形式: name|score|familiarity|comment|date (5列)
+    // 旧形式: name|score|comment|date (4列、把握度なし=100%)
+    if(p.length>=5){
+      return{name:p[0]||"",score:Number(p[1])||0,familiarity:Math.max(0,Math.min(100,Number(p[2])||100)),comment:p[3]||"",date:p[4]||""};
+    }
+    return{name:p[0]||"",score:Number(p[1])||0,familiarity:100,comment:p[2]||"",date:p[3]||""};
   }).filter(function(e){return e&&e.name;});
 }
 function buildEvals(arr){
-  return arr.map(function(e){return [e.name,e.score,(e.comment||"").replace(/[|\n]/g," "),e.date||""].join("|");}).join("\n");
+  return arr.map(function(e){return [e.name,e.score,(e.familiarity==null?100:e.familiarity),(e.comment||"").replace(/[|\n]/g," "),e.date||""].join("|");}).join("\n");
+}
+function weightedEvalAvg(arr){
+  var sumW=0,sumWS=0;
+  arr.forEach(function(e){var w=(e.familiarity==null?100:e.familiarity)/100;sumW+=w;sumWS+=e.score*w;});
+  return sumW>0?(sumWS/sumW):null;
 }
 function isSelfManager(emp){
   if(!currentUser||!emp)return false;
@@ -676,16 +696,19 @@ async function submitEval(){
   var name=document.getElementById("eval-name").value.trim();
   var empNo=document.getElementById("eval-target").value;
   var score=Number(document.getElementById("eval-score").value);
+  var famRaw=document.getElementById("eval-familiarity").value;
+  var familiarity=famRaw===""?null:Number(famRaw);
   var comment=document.getElementById("eval-comment").value.trim();
   if(!name){alert("評価者名を入力してください");return;}
   if(!empNo){alert("対象マネージャーを選択してください");return;}
   if(!score){alert("総合評価を選択してください");return;}
+  if(familiarity===null){alert("把握度を選択してください");return;}
   var emp=EMPS.find(function(e){return e.emp_no===empNo;});if(!emp)return;
   if(isSelfManager(emp)){alert("自分自身への評価は入力できません。");return;}
   var arr=parseEvals(emp.evaluations||"");
   var today=new Date().toISOString().slice(0,10);
   var idx=arr.findIndex(function(e){return e.name===name;});
-  var entry={name:name,score:score,comment:comment,date:today};
+  var entry={name:name,score:score,familiarity:familiarity,comment:comment,date:today};
   if(idx>=0)arr[idx]=entry;else arr.push(entry);
   var newRaw=buildEvals(arr);
   emp.evaluations=newRaw;
@@ -697,6 +720,7 @@ async function submitEval(){
     setTimeout(function(){document.getElementById("eval-msg").style.display="none";},2000);
     document.getElementById("eval-comment").value="";
     document.getElementById("eval-score").value="";
+    document.getElementById("eval-familiarity").value="";
     renderEval();
     if(typeof renderMgr==='function'&&document.getElementById("v-mgr").style.display==="block")renderMgr();
   }catch(e){alert("保存エラー: "+e.message);}
@@ -726,8 +750,9 @@ function renderEval(){
   var rows="";
   EMPS.filter(function(e){return e.is_mgr&&!isSelfManager(e);}).forEach(function(emp){
     var arr=parseEvals(emp.evaluations||"");
-    var avg=arr.length?(arr.reduce(function(s,e){return s+e.score;},0)/arr.length).toFixed(1):"—";
-    var avgCls=arr.length?(avg>=4?"color:#C97A2E;font-weight:700":avg>=3?"color:#1565C0;font-weight:700":"color:#C62828;font-weight:700"):"color:#BDBDBD";
+    var wavg=weightedEvalAvg(arr);
+    var avg=wavg!=null?wavg.toFixed(1):"—";
+    var avgCls=wavg!=null?(wavg>=4?"color:#C97A2E;font-weight:700":wavg>=3?"color:#1565C0;font-weight:700":"color:#C62828;font-weight:700"):"color:#BDBDBD";
     // 管理者は全員、それ以外は自分の評価だけ見える
     var visible=admin?arr:arr.filter(function(e){return e.name===myLabel;});
     var details;
@@ -736,7 +761,8 @@ function renderEval(){
         var sc=e.score>=4?"bg":e.score>=3?"bb":"br";
         var canDel=admin||e.name===myLabel;
         var delBtn=canDel?" <button onclick=\"deleteEval('"+emp.emp_no+"','"+e.name.replace(/'/g,"\\'")+"')\" style=\"background:none;border:none;cursor:pointer;color:#C62828;font-size:11px\" title=\"この評価を削除\">🗑</button>":"";
-        return "<div style=\"padding:3px 0;border-bottom:1px dashed #EEE;font-size:12px\"><b>"+e.name+"</b> <span class=\"badge "+sc+"\">"+e.score+"</span> <span style=\"color:#424242\">"+(e.comment||"(コメント無し)")+"</span> <span style=\"color:#BDBDBD;font-size:10px\">"+(e.date||"")+"</span>"+delBtn+"</div>";
+        var fam=(e.familiarity==null?100:e.familiarity);
+        return "<div style=\"padding:3px 0;border-bottom:1px dashed #EEE;font-size:12px\"><b>"+e.name+"</b> <span class=\"badge "+sc+"\">"+e.score+"</span> <span style=\"color:#6A1B9A;font-size:11px\">把握"+fam+"%</span> <span style=\"color:#424242\">"+(e.comment||"(コメント無し)")+"</span> <span style=\"color:#BDBDBD;font-size:10px\">"+(e.date||"")+"</span>"+delBtn+"</div>";
       }).join("");
     }else{
       details=admin?"<span style=\"color:#BDBDBD;font-size:12px\">未評価</span>":"<span style=\"color:#BDBDBD;font-size:12px\">あなたは未入力 (上のフォームから入力してください)</span>";
@@ -763,9 +789,10 @@ function renderMgr(){
     var stHtml=st===3?"<span class=\"ph3\">確定済</span>":st===2?"<span class=\"ph2\">入力中</span>":"<span class=\"badge bgray\">未入力</span>";
     var achStr=ach!=null?(ach*100).toFixed(1)+"%":"—";
     var evalArr=parseEvals(emp.evaluations||"");
-    var evalAvg=evalArr.length?(evalArr.reduce(function(s,e){return s+e.score;},0)/evalArr.length).toFixed(1):"—";
-    var evalCls=evalArr.length?(evalAvg>=4?"color:#C97A2E":evalAvg>=3?"color:#1565C0":"color:#C62828"):"color:#BDBDBD";
-    var evalSum=evalArr.length?"<div style=\"font-size:11px;padding:4px;background:#F5F5F5;border-radius:4px\"><b style=\""+evalCls+"\">★"+evalAvg+"</b> ("+evalArr.length+"件): "+evalArr.map(function(e){return e.name+"="+e.score;}).join(" / ")+"</div>":"<span style=\"font-size:10px;color:#BDBDBD\">事前評価なし</span>";
+    var evalW=weightedEvalAvg(evalArr);
+    var evalAvg=evalW!=null?evalW.toFixed(1):"—";
+    var evalCls=evalW!=null?(evalW>=4?"color:#C97A2E":evalW>=3?"color:#1565C0":"color:#C62828"):"color:#BDBDBD";
+    var evalSum=evalArr.length?"<div style=\"font-size:11px;padding:4px;background:#F5F5F5;border-radius:4px\"><b style=\""+evalCls+"\">★"+evalAvg+"</b> ("+evalArr.length+"件): "+evalArr.map(function(e){return e.name+"="+e.score+"("+(e.familiarity==null?100:e.familiarity)+"%)";}).join(" / ")+"</div>":"<span style=\"font-size:10px;color:#BDBDBD\">事前評価なし</span>";
     rows+="<tr><td style=\"font-weight:700\">"+emp.name+"</td><td style=\"font-size:11px\">"+emp.store+"</td><td>"+achStr+"</td><td><input type=\"text\" value=\""+(prevSal?numFmt(prevSal):"")+"\" onchange=\"saveEmpField('"+emp.emp_no+"','"+emp.name+"','prev_salary','prev_salary',(numParse(this.value)||0));this.value=numFmt(numParse(this.value))\" style=\"width:100%;font-size:12px;padding:3px;text-align:right;color:#6A1B9A\" placeholder=\"37期年俸\"></td><td>"+yen(emp.prev_target)+"</td><td><input type=\"text\" value=\""+(salVal===""?"":numFmt(salVal))+"\" onchange=\"svK('"+emp.emp_no+"','"+emp.name+"','fDelta','final_delta',(numParse(this.value)||0).toString());this.value=numFmt(numParse(this.value))\" style=\"width:100%;font-size:12px;padding:3px;text-align:right\" placeholder=\"例 12,000,000\"></td><td><input type=\"text\" value=\""+numFmt(tgtVal)+"\" onchange=\"svK('"+emp.emp_no+"','"+emp.name+"','fRank','final_rank',(numParse(this.value)||0).toString());this.value=numFmt(numParse(this.value))\" style=\"width:100%;font-size:12px;padding:3px;text-align:right\" placeholder=\"例 12,800,000\"></td><td><input type=\"text\" value=\""+(s.fMemo||"").replace(/\"/g,'&quot;')+"\" onchange=\"svK('"+emp.emp_no+"','"+emp.name+"','fMemo','final_memo',this.value)\" style=\"font-size:11px;padding:3px;width:100%\" placeholder=\"役員決定メモ\"></td><td>"+evalSum+"</td><td><input type=\"text\" value=\""+(emp.memo||"").replace(/\"/g,'&quot;')+"\" onchange=\"svMemo('"+emp.emp_no+"','"+emp.name+"',this.value)\" style=\"font-size:11px;padding:3px;width:100%;color:#6A1B9A\" placeholder=\"備考\"></td><td>"+stHtml+"</td></tr>";
     if(curSal)tot.salary+=curSal;
     if(curTgt)tot.tgt+=curTgt;
