@@ -338,8 +338,15 @@ tr:hover td{background:#FAFAFA}
       </div>
     </div>
     <div class="row">
-      <div class="field" style="flex:1"><label>🔒 ④新テーブル移行 / 📋 新給与テーブル(7月)</label>
-        <textarea id="perm-table" style="width:100%;padding:6px;min-height:140px;font-family:monospace;font-size:12px" placeholder="2タブまとめてこの欄で権限管理"></textarea>
+      <div class="field" style="flex:1">
+        <label style="display:flex;align-items:center;justify-content:space-between">
+          <span>🔒 ④新テーブル移行 / 📋 新給与テーブル(7月)</span>
+          <span style="display:flex;gap:6px">
+            <button type="button" class="btn btn-sm" onclick="permAllowAll('table')" title="ワイルドカード * を入れて全員許可">👥 全員に許可</button>
+            <button type="button" class="btn btn-sm" onclick="permClear('table')" title="クリア（管理者のみに戻す）">🚫 クリア</button>
+          </span>
+        </label>
+        <textarea id="perm-table" style="width:100%;padding:6px;min-height:140px;font-family:monospace;font-size:12px" placeholder="2タブまとめてこの欄で権限管理&#10;* を1行入れると全員許可"></textarea>
       </div>
       <div class="field" style="flex:1"></div>
     </div>
@@ -1208,6 +1215,7 @@ function canAccess(area){
   if(isAdmin())return true;
   if(!currentUser)return false;
   var list=APP_CONFIG.acl[area]||[];
+  if(list.indexOf("*")>=0)return true; // ワイルドカード = 全員許可
   return list.indexOf(curEmail())>=0;
 }
 const SETTINGS_EMP_NO="9999";
@@ -1253,6 +1261,19 @@ async function loadSettings(){
   }catch(e){console.warn("loadSettings Kintone:",e);}
 }
 function parseEmails(raw){return raw.split(/[,\n]/).map(function(s){return s.trim().toLowerCase();}).filter(function(s){return s;});}
+function permAllowAll(area){
+  var ta=document.getElementById("perm-"+area);
+  if(!ta)return;
+  ta.value="*";
+  savePerm();
+}
+function permClear(area){
+  var ta=document.getElementById("perm-"+area);
+  if(!ta)return;
+  if(!confirm(area+" の許可リストをクリアしますか? (管理者のみアクセスできる状態に戻ります)"))return;
+  ta.value="";
+  savePerm();
+}
 function renderPerm(){
   document.getElementById("perm-final").value=APP_CONFIG.acl.final.join("\n");
   document.getElementById("perm-mgr").value=APP_CONFIG.acl.mgr.join("\n");
