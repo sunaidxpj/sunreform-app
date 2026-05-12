@@ -181,19 +181,31 @@ tr:hover td{background:#FAFAFA}
   </tr></thead><tbody id="final-tb"></tbody></table></div></div>
 </div>
 <div id="v-migrate" style="display:none">
-  <div class="card"><div class="ct">7月新テーブル移行計算</div>
-    <div style="font-size:12px;color:#757575;margin-bottom:10px">旧総額（年齢給＋役職等級手当＋LP¥45,000）を維持したまま新テーブルの等級を逆算。減給者ゼロ。</div>
+  <div class="card"><div class="ct">7月新テーブル移行計算 (2026/7/1 施行 v15_2)</div>
+    <div style="font-size:12px;color:#757575;margin-bottom:10px">旧総額（年齢給＋役職等級手当＋LP¥45,000）を維持したまま新テーブルの等級を逆算。減給者ゼロ、最大差額は号数切り上げ誤差のみ。</div>
     <div class="fr">
       <select id="mig-sf" onchange="renderMigrate()"><option value="">全店舗</option></select>
       <select id="mig-ff" onchange="renderMigrate()"><option value="">全員</option><option value="確定済">③確定済のみ</option></select>
+      <button class="btn btn-sm" onclick="clearMigFilters()" title="絞り込みをクリア">↻ クリア</button>
     </div>
   </div>
-  <div class="card" style="padding:0"><div class="tw"><table><thead><tr>
-    <th style="width:90px">氏名</th><th style="width:70px">店舗</th><th style="width:80px">37期等級</th>
-    <th style="width:80px">③確定等級</th><th style="width:75px">新テーブル</th><th style="width:85px">旧総額</th>
-    <th style="width:85px">新年齢給</th><th style="width:90px">新役職</th><th style="width:85px">新役職手当</th>
-    <th style="width:75px">新等級</th><th style="width:85px">新等級手当</th><th style="width:85px">新総額</th><th style="width:70px">差額</th><th style="width:95px">来期利益設定</th>
-  </tr></thead><tbody id="mig-tb"></tbody></table></div></div>
+  <div id="mig-summary"></div>
+  <div class="card" style="padding:0"><div class="tw"><table><thead>
+    <tr style="background:#FAEFDD">
+      <th colspan="3" style="background:#F5F5F5;border-right:2px solid #C97A2E">基本情報</th>
+      <th colspan="1" style="background:#FFF3E0;border-right:2px solid #C97A2E">査定確定</th>
+      <th colspan="3" style="background:#E3F2FD;border-right:2px solid #C97A2E">現状(旧体系)</th>
+      <th colspan="6" style="background:#E8F5E9;border-right:2px solid #C97A2E">移行後(新体系 v15_2)</th>
+      <th colspan="2" style="background:#FCE4EC">差額・利益設定</th>
+    </tr>
+    <tr>
+      <th style="width:90px">氏名</th><th style="width:70px">店舗</th><th style="width:80px">37期等級</th>
+      <th style="width:80px">③確定等級</th>
+      <th style="width:75px">旧テーブル</th><th style="width:80px">年齢</th><th style="width:85px">旧総額</th>
+      <th style="width:75px">新テーブル</th><th style="width:85px">新年齢給</th><th style="width:90px">新役職</th><th style="width:75px">新役職手当</th><th style="width:75px">新等級</th><th style="width:85px">新総額</th>
+      <th style="width:70px">差額</th><th style="width:95px">来期利益設定</th>
+    </tr>
+  </thead><tbody id="mig-tb"></tbody></table></div></div>
 </div>
 <div id="v-newtable" style="display:none">
   <div class="card">
@@ -516,9 +528,10 @@ const RANK_MAP={"次長":"チームリーダー","課長":"チームリーダー
 const RANK_PAY={"グループリーダー":70000,"チームリーダー":50000,"サブリーダー":30000,"１級メンバー":15000,"２級メンバー":10000,"３級メンバー":5000};
 const TBL_MAP={"②営業":"①営業","③施工管理":"①営業","⑤SSC":"①営業","④設計":"②設計","⑥サポート":"③サポート","⑦サポート":"③サポート","設計職":"②設計"};
 function getNewTbl(old){for(const k in TBL_MAP){if(old.includes(k))return TBL_MAP[k];}return "①営業";}
-const A1={18:55000,19:58500,20:62000,21:65500,22:69000,23:72500,24:76000,25:80000,26:84000,27:88000,28:92000,29:96000,30:100000,31:104000,32:108000,33:112000,34:116000,35:120000,36:123500,37:127000,38:130500,39:134000,40:137500,41:140500,42:143500,43:146500,44:149500,45:152500,46:155000,47:157500,48:160000,49:162500,50:165000,51:167500,52:170000,53:172500,54:175000,55:177500,56:180000,57:182500,58:182500,59:182500,60:182500};
-const A2={18:50000,19:53000,20:56500,21:59500,22:62500,23:66000,24:69000,25:72500,26:76500,27:80000,28:83500,29:87500,30:91000,31:94500,32:98000,33:102000,34:105500,35:109000,36:112500,37:115500,38:118500,39:122000,40:125000,41:127500,42:130500,43:133000,44:136000,45:138500,46:141000,47:143500,48:145500,49:147500,50:150000,51:152000,52:154500,53:156500,54:159000,55:161000,56:163500,57:165500,58:165500,59:165500,60:165500};
-const A3={18:45000,19:48000,20:50500,21:53500,22:56500,23:59500,24:62000,25:65500,26:68500,27:72000,28:75500,29:78500,30:82000,31:85000,32:88500,33:91500,34:95000,35:98000,36:101000,37:104000,38:107000,39:109500,40:112500,41:115000,42:117500,43:120000,44:122500,45:125000,46:127500,47:129500,48:131500,49:133500,50:135000,51:137000,52:139000,53:141000,54:143000,55:145000,56:146500,57:148000,58:148000,59:148000,60:148000};
+// 年齢給テーブル v15_2 (2026/7 施行) — 旧 v15 から 51-60 歳のカーブを修正
+const A1={18:55000,19:58500,20:62000,21:65500,22:69000,23:72500,24:76000,25:80000,26:84000,27:88000,28:92000,29:96000,30:100000,31:104000,32:108000,33:112000,34:116000,35:120000,36:123500,37:127000,38:130500,39:134000,40:137500,41:140500,42:143500,43:146500,44:149500,45:152500,46:155000,47:157500,48:160000,49:162500,50:165000,51:167000,52:169000,53:171000,54:173000,55:175000,56:176500,57:178000,58:179500,59:181000,60:182500};
+const A2={18:50000,19:53000,20:56500,21:59500,22:62500,23:66000,24:69000,25:72500,26:76500,27:80000,28:83500,29:87500,30:91000,31:94500,32:98000,33:102000,34:105500,35:109000,36:112500,37:115500,38:118500,39:122000,40:125000,41:127500,42:130500,43:133000,44:136000,45:138500,46:141000,47:143000,48:145500,49:147500,50:150000,51:152000,52:153500,53:155500,54:157500,55:159000,56:160500,57:162000,58:163000,59:164500,60:166000};
+const A3={18:45000,19:48000,20:50500,21:53500,22:56500,23:59500,24:62000,25:65500,26:68500,27:72000,28:75500,29:78500,30:82000,31:85000,32:88500,33:91500,34:95000,35:98000,36:101000,37:104000,38:107000,39:109500,40:112500,41:115000,42:117500,43:120000,44:122500,45:125000,46:127000,47:129000,48:131000,49:133000,50:135000,51:136500,52:138500,53:140000,54:141500,55:143000,56:144500,57:145500,58:147000,59:148000,60:149500};
 function getAP(age,tbl){age=Math.min(age,60);return(tbl==="①営業"?A1:tbl==="②設計"?A2:A3)[age]||0;}
 function getAge(bd){if(!bd)return 0;const p=bd.split("/");if(p.length<3)return 0;const by=+p[0],bm=+p[1],bdd=+p[2];let a=2026-by;if(bm>4||(bm===4&&bdd>1))a--;return a;}
 const GP2_1={G:105000,F:122000,E:139000,D:155000,C:172000,B:189000,A:206000,S:223000};
@@ -1275,16 +1288,76 @@ async function svK(empNo,name,lk,kk,val){
   },800);
 }
 
+function clearMigFilters(){
+  document.getElementById("mig-sf").value="";
+  document.getElementById("mig-ff").value="";
+  renderMigrate();
+}
 function renderMigrate(){
   const sf=document.getElementById("mig-sf").value,ff=document.getElementById("mig-ff").value;
   let emps=(sf?EMPS.filter(function(e){return e.store===sf;}):EMPS).filter(function(e){return !e.is_mgr;});
   if(ff==="確定済")emps=emps.filter(function(e){return getStatus(e.name)===3;});
+
+  // 集計サマリ
+  var b={cnt:0,oldM:0,newM:0,diffSum:0,diff0:0,diff1k:0,diff1k5:0,diffMin:0,diffMax:0,decreases:0,nextTgtSum:0,naSum:0,roleChg:0};
+  emps.forEach(function(emp){
+    if(emp.base_pay===0&&emp.rank_pay===0)return;
+    if(isPart(emp))return;
+    const s=saves[emp.name]||{},fR=s.fRank||s.mRank||null,fG=s.fGrade||s.mGrade||null;
+    const m=calcMig(emp,fR,fG);
+    b.cnt++;b.oldM+=m.ot;b.newM+=m.nt;b.diffSum+=m.diff;
+    if(m.diff===0)b.diff0++;
+    else if(m.diff>0&&m.diff<=1000)b.diff1k++;
+    else if(m.diff>1000&&m.diff<=1500)b.diff1k5++;
+    if(m.diff<0)b.decreases++;
+    if(m.diff<b.diffMin)b.diffMin=m.diff;
+    if(m.diff>b.diffMax)b.diffMax=m.diff;
+    b.naSum+=m.na;
+    b.nextTgtSum+=m.nextTarget||0;
+    if(m.rn&&emp.rank37&&RANK_MAP[emp.rank37]!==m.rn)b.roleChg++;
+  });
+  var sumHtml='<div class="card" style="background:#FFF9C4;border-color:#F57F17"><div style="font-weight:700;color:#5C3210;margin-bottom:8px">📊 '+(sf||"全店舗")+' 移行サマリ ('+b.cnt+'名)</div>'
+    +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;font-size:12px">'
+    +'<div><span style="color:#757575">旧月額合計</span><br><b style="font-size:14px">'+yen(b.oldM)+'</b></div>'
+    +'<div><span style="color:#757575">新月額合計</span><br><b style="font-size:14px">'+yen(b.newM)+'</b></div>'
+    +'<div><span style="color:#757575">月額差合計</span><br><b style="font-size:14px;color:'+(b.diffSum>0?"#2E7D32":b.diffSum<0?"#C62828":"#5C3210")+'">'+(b.diffSum>=0?"+":"")+yen(b.diffSum)+'</b></div>'
+    +'<div><span style="color:#757575">年額差(×14)</span><br><b style="font-size:14px;color:'+(b.diffSum>0?"#2E7D32":b.diffSum<0?"#C62828":"#5C3210")+'">'+(b.diffSum>=0?"+":"")+yen(b.diffSum*14)+'</b></div>'
+    +'<div><span style="color:#757575">来期利益設定合計</span><br><b style="font-size:14px;color:#C97A2E">'+yen(b.nextTgtSum)+'</b></div>'
+    +'<div><span style="color:#757575">役職変動人数</span><br><b style="font-size:14px;color:#1565C0">'+b.roleChg+'名</b></div>'
+    +'</div>'
+    +'<div style="margin-top:10px;padding-top:8px;border-top:1px dashed #C9A565;font-size:11px;color:#5C3210">'
+    +'差額分布: <b>完全一致</b> '+b.diff0+'名 / <b>¥1〜¥1,000</b> '+b.diff1k+'名 / <b>¥1,001〜¥1,500</b> '+b.diff1k5+'名'
+    +(b.decreases>0?' / <b style="color:#C62828">減給</b> '+b.decreases+'名':' / <b style="color:#2E7D32">減給ゼロ</b>')
+    +' / 最大差額 '+yen(b.diffMax)+' 最小 '+yen(b.diffMin)
+    +'</div></div>';
+  document.getElementById("mig-summary").innerHTML=sumHtml;
+
   document.getElementById("mig-tb").innerHTML=emps.map(function(emp){
     const s=saves[emp.name]||{},fR=s.fRank||s.mRank||null,fG=s.fGrade||s.mGrade||null;
     const cs=fR&&fG?fR+" "+fG:"（査定前）";
-    if(emp.base_pay===0&&emp.rank_pay===0)return "<tr><td style=\"font-weight:700\">"+emp.name+"</td><td style=\"font-size:11px\">"+emp.store+"</td><td style=\"font-size:11px\">"+emp.rank37+" "+emp.grade37+"</td><td style=\"font-size:11px\">"+cs+"</td><td colspan=\"9\" style=\"color:#BDBDBD;font-size:12px\">給与データなし</td></tr>";
+    const age=getAge(emp.birth_date);
+    if(emp.base_pay===0&&emp.rank_pay===0)return "<tr><td style=\"font-weight:700\">"+emp.name+"</td><td style=\"font-size:11px\">"+emp.store+"</td><td style=\"font-size:11px\">"+emp.rank37+" "+emp.grade37+"</td><td style=\"font-size:11px\">"+cs+"</td><td colspan=\"11\" style=\"color:#BDBDBD;font-size:12px\">給与データなし</td></tr>";
     const m=calcMig(emp,fR,fG),dc=m.diff===0?"bb":m.diff>0?"bg":"br";
-    return "<tr><td style=\"font-weight:700\">"+emp.name+"</td><td style=\"font-size:11px\">"+emp.store+"</td><td style=\"font-size:11px\">"+emp.rank37+" "+emp.grade37+"</td><td style=\"font-size:11px;color:#C97A2E;font-weight:700\">"+cs+"</td><td style=\"font-size:12px\">"+m.tbl+"</td><td style=\"font-size:12px\">"+yen(m.ot)+"</td><td style=\"font-size:12px\">"+yen(m.na)+"</td><td style=\"font-size:12px\">"+m.rn+"</td><td style=\"font-size:12px\">"+yen(m.rp)+"</td><td style=\"font-weight:700;color:#1565C0\">"+m.ng+"</td><td style=\"font-size:12px\">"+yen(m.ngp)+"</td><td style=\"font-weight:700\">"+yen(m.nt)+"</td><td><span class=\"badge "+dc+"\">"+(m.diff>=0?"+":"")+yen(m.diff)+"</span></td></tr>";
+    const oldRoleStr=emp.rank37||"";
+    const roleChanged=oldRoleStr&&RANK_MAP[oldRoleStr]&&RANK_MAP[oldRoleStr]!==m.rn;
+    const roleCell="<td style=\"font-size:12px"+(roleChanged?";background:#FFF3E0;color:#E65100;font-weight:700":"")+"\">"+m.rn+"</td>";
+    return "<tr>"
+      +"<td style=\"font-weight:700\">"+emp.name+"</td>"
+      +"<td style=\"font-size:11px\">"+emp.store+"</td>"
+      +"<td style=\"font-size:11px\">"+emp.rank37+" "+emp.grade37+"</td>"
+      +"<td style=\"font-size:11px;color:#C97A2E;font-weight:700\">"+cs+"</td>"
+      +"<td style=\"font-size:11px;color:#757575\">"+(emp.table37||"")+"</td>"
+      +"<td style=\"font-size:11px\">"+age+"歳</td>"
+      +"<td style=\"font-size:12px\">"+yen(m.ot)+"</td>"
+      +"<td style=\"font-size:12px;color:#1565C0;font-weight:700\">"+m.tbl+"</td>"
+      +"<td style=\"font-size:12px\">"+yen(m.na)+"</td>"
+      +roleCell
+      +"<td style=\"font-size:12px\">"+yen(m.rp)+"</td>"
+      +"<td style=\"font-weight:700;color:#1565C0\">"+m.ng+"</td>"
+      +"<td style=\"font-weight:700\">"+yen(m.nt)+"</td>"
+      +"<td><span class=\"badge "+dc+"\">"+(m.diff>=0?"+":"")+yen(m.diff)+"</span></td>"
+      +"<td style=\"font-size:12px;color:#C97A2E;font-weight:700\">"+yen(m.nextTarget||0)+"</td>"
+      +"</tr>";
   }).join("");
 }
 
