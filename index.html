@@ -337,6 +337,12 @@ tr:hover td{background:#FAFAFA}
         <textarea id="perm-csv" style="width:100%;padding:6px;min-height:140px;font-family:monospace;font-size:12px"></textarea>
       </div>
     </div>
+    <div class="row">
+      <div class="field" style="flex:1"><label>🔒 ④新テーブル移行 / 📋 新給与テーブル(7月)</label>
+        <textarea id="perm-table" style="width:100%;padding:6px;min-height:140px;font-family:monospace;font-size:12px" placeholder="2タブまとめてこの欄で権限管理"></textarea>
+      </div>
+      <div class="field" style="flex:1"></div>
+    </div>
     <div style="display:flex;gap:8px;align-items:center;margin-top:10px">
       <button class="btn btn-p" onclick="savePerm()">保存</button>
       <span class="smsg" id="perm-msg">✓ 保存しました</span>
@@ -575,7 +581,7 @@ const PW="morie8386";
 let permUnlocked=false,pwTarget="perm";
 function denyAlert(area){alert("このタブへのアクセス権限がありません。\n管理者の「⚙️ 権限設定」で許可メールに追加が必要です。\n\nログイン中: "+(curEmail()||"(未サインイン)"));}
 function tryUnlock(){if(canAccess("final")){showTab("final");}else{denyAlert("final");}}
-function tryUnlockTab(t){if(canAccess("final")){showTab(t);}else{denyAlert("final");}}
+function tryUnlockTab(t){if(canAccess("table")){showTab(t);}else{denyAlert("table");}}
 function tryUnlockMgr(){if(canAccess("mgr")){showTab("mgr");}else{denyAlert("mgr");}}
 function tryUnlockEval(){if(canAccess("eval")){showTab("eval");}else{denyAlert("eval");}}
 function tryUnlockPerm(){
@@ -642,8 +648,8 @@ function init(){
 
 function showTab(t){
   if(t==="final"&&!canAccess("final")){denyAlert("final");return;}
-  if(t==="migrate"&&!canAccess("final")){denyAlert("final");return;}
-  if(t==="newtable"&&!canAccess("final")){denyAlert("final");return;}
+  if(t==="migrate"&&!canAccess("table")){denyAlert("table");return;}
+  if(t==="newtable"&&!canAccess("table")){denyAlert("table");return;}
   if(t==="mgr"&&!canAccess("mgr")){denyAlert("mgr");return;}
   if(t==="eval"&&!canAccess("eval")){denyAlert("eval");return;}
   if(t==="perm"&&!permUnlocked){tryUnlockPerm();return;}
@@ -1196,7 +1202,7 @@ function calcPreview(empName, rank, grade){
   return "<div style=\"font-size:11px;color:#0D47A1;margin-top:2px\">→"+m.tbl+" "+m.ng+" 新総額:"+yen(m.nt)+" <span class=\"badge "+dc+"\">"+( m.diff>=0?"+":"")+yen(m.diff)+"</span>"+ntStr+"</div>";
 }
 const saveTimer={};
-const APP_CONFIG={acl:{final:[],mgr:[],eval:[],csv:[]}};
+const APP_CONFIG={acl:{final:[],mgr:[],eval:[],csv:[],table:[]}};
 function curEmail(){return currentUser?(currentUser.username||"").toLowerCase():"";}
 function canAccess(area){
   if(isAdmin())return true;
@@ -1225,7 +1231,7 @@ async function loadSettings(){
   // 1. localStorage から即反映
   try{
     var ls=localStorage.getItem("app_acl");
-    if(ls){var p=JSON.parse(ls);APP_CONFIG.acl.final=p.final||[];APP_CONFIG.acl.mgr=p.mgr||[];APP_CONFIG.acl.eval=p.eval||[];APP_CONFIG.acl.csv=p.csv||[];}
+    if(ls){var p=JSON.parse(ls);APP_CONFIG.acl.final=p.final||[];APP_CONFIG.acl.mgr=p.mgr||[];APP_CONFIG.acl.eval=p.eval||[];APP_CONFIG.acl.csv=p.csv||[];APP_CONFIG.acl.table=p.table||[];}
   }catch(e){}
   // 2. Kintone から上書き (あれば)
   try{
@@ -1239,6 +1245,7 @@ async function loadSettings(){
           APP_CONFIG.acl.mgr=parsed.mgr||APP_CONFIG.acl.mgr;
           APP_CONFIG.acl.eval=parsed.eval||APP_CONFIG.acl.eval;
           APP_CONFIG.acl.csv=parsed.csv||APP_CONFIG.acl.csv;
+          APP_CONFIG.acl.table=parsed.table||APP_CONFIG.acl.table;
           localStorage.setItem("app_acl",m);
         }catch(e){console.warn("settings parse:",e);}
       }
@@ -1251,6 +1258,7 @@ function renderPerm(){
   document.getElementById("perm-mgr").value=APP_CONFIG.acl.mgr.join("\n");
   document.getElementById("perm-eval").value=APP_CONFIG.acl.eval.join("\n");
   document.getElementById("perm-csv").value=APP_CONFIG.acl.csv.join("\n");
+  document.getElementById("perm-table").value=(APP_CONFIG.acl.table||[]).join("\n");
   document.getElementById("perm-current").textContent="あなた: "+curEmail()+" (管理者: "+(isAdmin()?"はい":"いいえ")+")";
 }
 async function savePerm(){
@@ -1258,6 +1266,7 @@ async function savePerm(){
   APP_CONFIG.acl.mgr=parseEmails(document.getElementById("perm-mgr").value);
   APP_CONFIG.acl.eval=parseEmails(document.getElementById("perm-eval").value);
   APP_CONFIG.acl.csv=parseEmails(document.getElementById("perm-csv").value);
+  APP_CONFIG.acl.table=parseEmails(document.getElementById("perm-table").value);
   var json=JSON.stringify(APP_CONFIG.acl);
   // localStorageには必ず保存
   try{localStorage.setItem("app_acl",json);}catch(e){}
