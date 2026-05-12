@@ -304,6 +304,7 @@ tr:hover td{background:#FAFAFA}
     <div style="padding:10px 14px;font-weight:700;color:#5C3210;background:#FAEFDD;border-bottom:1px solid #E5C896">📊 マネージャー別 評価集計</div>
     <div class="tw"><table><thead><tr>
       <th style="width:100px">氏名</th><th style="width:90px">店舗</th>
+      <th style="width:75px">達成率</th><th style="width:115px">完工利益結果</th><th style="width:115px">完工利益設定</th>
       <th style="width:85px">評価件数</th><th style="width:85px">平均点</th>
       <th style="width:auto">評価詳細 (評価者・点数・コメント)</th>
     </tr></thead><tbody id="eval-tb"></tbody></table></div>
@@ -833,7 +834,15 @@ function renderEval(){
     }else{
       details=admin?"<span style=\"color:#BDBDBD;font-size:12px\">未評価</span>":"<span style=\"color:#BDBDBD;font-size:12px\">あなたは未入力 (上のフォームから入力してください)</span>";
     }
-    rows+="<tr><td style=\"font-weight:700\">"+emp.name+"</td><td style=\"font-size:11px\">"+emp.store+"</td><td>"+arr.length+"件</td><td style=\""+avgCls+";font-size:15px\">"+avg+"</td><td>"+details+"</td></tr>";
+    // 成績: 達成率 / 完工利益結果 / 完工利益設定
+    var ach=emp.achieve;
+    var achHtml=ach!=null?(function(){
+      var p=ach*100,col=p>=110?"bg":p>=100?"bb":p>=95?"ba":"br";
+      return "<span class=\"badge "+col+"\">"+p.toFixed(1)+"%</span>";
+    })():"<span style=\"color:#BDBDBD;font-size:12px\">—</span>";
+    var resHtml=emp.result!=null?"<span style=\"font-family:monospace;font-size:12px\">"+yen(emp.result)+"</span>":"<span style=\"color:#BDBDBD;font-size:12px\">—</span>";
+    var tgtHtml=emp.target!=null?"<span style=\"font-family:monospace;font-size:12px\">"+yen(emp.target)+"</span>":"<span style=\"color:#BDBDBD;font-size:12px\">—</span>";
+    rows+="<tr><td style=\"font-weight:700\">"+emp.name+"</td><td style=\"font-size:11px\">"+emp.store+"</td><td style=\"text-align:center\">"+achHtml+"</td><td style=\"text-align:right\">"+resHtml+"</td><td style=\"text-align:right\">"+tgtHtml+"</td><td>"+arr.length+"件</td><td style=\""+avgCls+";font-size:15px\">"+avg+"</td><td>"+details+"</td></tr>";
   });
   document.getElementById("eval-tb").innerHTML=rows;
 }
