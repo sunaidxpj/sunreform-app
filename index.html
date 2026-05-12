@@ -147,7 +147,6 @@ tr:hover td{background:#FAFAFA}
     <div class="fr">
       <select id="meet-sf" onchange="renderMeet()"><option value="">全店舗</option></select>
       <select id="meet-rf" onchange="renderMeet()"><option value="">全役職</option></select>
-      <select id="meet-gf" onchange="renderMeet()"><option value="">全等級</option></select>
       <select id="meet-ff" onchange="renderMeet()"><option value="">全員</option><option value="入力済">①入力済のみ</option><option value="役職変更">役職変更あり</option></select>
     </div>
   </div>
@@ -568,13 +567,12 @@ function init(){
   ["meet-sf","final-sf","mig-sf"].forEach(function(id){
     const el=document.getElementById(id);STORES.forEach(function(s){el.add(new Option(s,s));});
   });
-  // ②会議タブの役職・等級フィルタを EMPS から populate（is_mgr 除外）
+  // ②会議タブの役職フィルタを EMPS から populate（is_mgr 除外）
   (function(){
-    var ranks={},grades={};
-    EMPS.forEach(function(e){if(e.is_mgr)return; if(e.rank37)ranks[e.rank37]=1; if(e.grade37)grades[e.grade37]=1;});
-    var rf=document.getElementById("meet-rf"),gf=document.getElementById("meet-gf");
+    var ranks={};
+    EMPS.forEach(function(e){if(e.is_mgr)return; if(e.rank37)ranks[e.rank37]=1;});
+    var rf=document.getElementById("meet-rf");
     Object.keys(ranks).sort().forEach(function(r){rf.add(new Option(r,r));});
-    Object.keys(grades).sort().forEach(function(g){gf.add(new Option(g,g));});
   })();
   if(isAdmin()){
     var au=document.getElementById("tab-audit");if(au)au.style.display="";
@@ -909,10 +907,9 @@ function closeM(){document.getElementById("modal-area").style.display="none";cur
 
 function renderMeet(){
   const sf=document.getElementById("meet-sf").value,ff=document.getElementById("meet-ff").value;
-  const rf=document.getElementById("meet-rf").value,gf=document.getElementById("meet-gf").value;
+  const rf=document.getElementById("meet-rf").value;
   let emps=(sf?EMPS.filter(function(e){return e.store===sf;}):EMPS).filter(function(e){return !e.is_mgr;});
   if(rf)emps=emps.filter(function(e){return e.rank37===rf;});
-  if(gf)emps=emps.filter(function(e){return e.grade37===gf;});
   if(ff==="入力済")emps=emps.filter(function(e){return saves[e.name]&&saves[e.name].comment;});
   if(ff==="役職変更")emps=emps.filter(function(e){return autoCalc(e).roleChanged;});
   // 店舗/フィルタ集計
