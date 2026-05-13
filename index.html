@@ -303,13 +303,13 @@ tr:hover td{background:#FAFAFA}
 <div id="v-eval" style="display:none">
   <div class="card">
     <div class="ct">🔒 マネージャー事前評価</div>
-    <div style="font-size:12px;color:#757575;margin-bottom:10px">関わりのある複数の人がマネージャー18名を評価。同じ評価者が再入力すると上書きされます。役員会の年俸決定時の参考資料として活用。<br/><span style="color:#6A1B9A">🔐 プライバシー: 自分の評価詳細は自分だけが見えます (集計件数・平均点は共有)。役員・管理者は全員の評価を確認できます。</span></div>
+    <div style="font-size:12px;color:#757575;margin-bottom:10px">関わりのある複数の人がマネージャー18名を評価。同じ評価者が再入力すると上書きされます。役員会の年俸決定時の参考資料として活用。<br/><span style="color:#6A1B9A">🔐 プライバシー: 自分が入れた評価のみ閲覧・編集・削除できます (件数・平均点は集計値として共有)。役員・管理者も他人の個別評価の中身は見えません。</span></div>
     <div class="row">
       <div class="field" style="flex:1"><label>評価者 (ログイン中ユーザー自動)</label>
         <input type="text" id="eval-name" readonly style="width:100%;padding:6px;background:#F5F5F5;color:#424242">
       </div>
-      <div class="field" style="flex:1"><label>対象マネージャー <span style="color:#E53935">*</span></label>
-        <select id="eval-target" style="width:100%;padding:6px"><option value="">-- 選択 --</option></select>
+      <div class="field" style="flex:1"><label>対象マネージャー <span style="color:#E53935">*</span> <span id="eval-edit-mode" style="display:none;font-size:11px;color:#FFF;background:#1565C0;padding:1px 6px;border-radius:10px;margin-left:6px">✏️ 編集中 (上書き保存)</span></label>
+        <select id="eval-target" onchange="onEvalTargetChange()" style="width:100%;padding:6px"><option value="">-- 選択 --</option></select>
       </div>
       <div class="field" style="flex:0 0 120px"><label>総合評価 <span style="color:#E53935">*</span></label>
         <select id="eval-score" style="width:100%;padding:6px">
@@ -855,6 +855,44 @@ function fillEvalTargetSelect(){
     sel.innerHTML+='<option value="'+emp.emp_no+'">'+emp.name+' ('+emp.store+')</option>';
   });
 }
+function editEval(empNo){
+  // 自分の評価をフォームに読み込んで編集モードに入る
+  var emp=EMPS.find(function(e){return e.emp_no===empNo;});if(!emp)return;
+  var arr=parseEvals(emp.evaluations||"");
+  var myLabel=editorLabel();
+  var my=arr.find(function(e){return e.name===myLabel;});
+  if(!my){alert("あなたの評価が見つかりません");return;}
+  document.getElementById("eval-target").value=empNo;
+  document.getElementById("eval-score").value=String(my.score||"");
+  document.getElementById("eval-familiarity").value=String(my.familiarity==null?100:my.familiarity);
+  document.getElementById("eval-comment").value=my.comment||"";
+  showEvalEditingBadge(true);
+  document.getElementById("eval-target").scrollIntoView({behavior:"smooth",block:"center"});
+}
+function showEvalEditingBadge(on){
+  var msg=document.getElementById("eval-edit-mode");
+  if(!msg)return;
+  msg.style.display=on?"inline-block":"none";
+}
+function onEvalTargetChange(){
+  // 対象マネージャーを選択した際、既存の自分の評価があれば自動で読み込む
+  var empNo=document.getElementById("eval-target").value;
+  if(!empNo){showEvalEditingBadge(false);return;}
+  var emp=EMPS.find(function(e){return e.emp_no===empNo;});if(!emp){showEvalEditingBadge(false);return;}
+  var arr=parseEvals(emp.evaluations||"");
+  var my=arr.find(function(e){return e.name===editorLabel();});
+  if(my){
+    document.getElementById("eval-score").value=String(my.score||"");
+    document.getElementById("eval-familiarity").value=String(my.familiarity==null?100:my.familiarity);
+    document.getElementById("eval-comment").value=my.comment||"";
+    showEvalEditingBadge(true);
+  }else{
+    document.getElementById("eval-score").value="";
+    document.getElementById("eval-familiarity").value="";
+    document.getElementById("eval-comment").value="";
+    showEvalEditingBadge(false);
+  }
+}
 async function submitEval(){
   var name=document.getElementById("eval-name").value.trim();
   var empNo=document.getElementById("eval-target").value;
@@ -884,12 +922,14 @@ async function submitEval(){
     document.getElementById("eval-comment").value="";
     document.getElementById("eval-score").value="";
     document.getElementById("eval-familiarity").value="";
+    document.getElementById("eval-target").value="";
+    showEvalEditingBadge(false);
     renderEval();
     if(typeof renderMgr==='function'&&document.getElementById("v-mgr").style.display==="block")renderMgr();
   }catch(e){alert("保存エラー: "+e.message);}
 }
 async function deleteEval(empNo,evalName){
-  if(!isAdmin()&&evalName!==editorLabel()){alert("自分の評価のみ削除可能です");return;}
+  if(evalName!==editorLabel()){alert("自分の評価のみ削除可能です");return;}
   var emp=EMPS.find(function(e){return e.emp_no===empNo;});if(!emp)return;
   var arr=parseEvals(emp.evaluations||"");
   arr=arr.filter(function(e){return e.name!==evalName;});
@@ -908,26 +948,26 @@ function renderEval(){
   var nameInput=document.getElementById("eval-name");
   if(nameInput)nameInput.value=editorLabel();
   var myLabel=editorLabel();
-  var admin=isAdmin();
   var rows="";
   EMPS.filter(function(e){return e.is_mgr&&!isSelfManager(e);}).forEach(function(emp){
     var arr=parseEvals(emp.evaluations||"");
     var wavg=weightedEvalAvg(arr);
     var avg=wavg!=null?wavg.toFixed(1):"—";
     var avgCls=wavg!=null?(wavg>=4?"color:#C97A2E;font-weight:700":wavg>=3?"color:#1565C0;font-weight:700":"color:#C62828;font-weight:700"):"color:#BDBDBD";
-    // 管理者は全員、それ以外は自分の評価だけ見える
-    var visible=admin?arr:arr.filter(function(e){return e.name===myLabel;});
+    // 厳密プライバシー: 全ユーザー (管理者含む) 自分の評価のみ閲覧可
+    var visible=arr.filter(function(e){return e.name===myLabel;});
     var details;
     if(visible.length){
       details=visible.map(function(e){
         var sc=e.score>=4?"bg":e.score>=3?"bb":"br";
-        var canDel=admin||e.name===myLabel;
-        var delBtn=canDel?" <button onclick=\"deleteEval('"+emp.emp_no+"','"+e.name.replace(/'/g,"\\'")+"')\" style=\"background:none;border:none;cursor:pointer;color:#C62828;font-size:11px\" title=\"この評価を削除\">🗑</button>":"";
+        var nameEsc=e.name.replace(/'/g,"\\'").replace(/"/g,'&quot;');
+        var editBtn=" <button onclick=\"editEval('"+emp.emp_no+"')\" style=\"background:none;border:none;cursor:pointer;color:#1565C0;font-size:11px\" title=\"この評価を編集\">✏️</button>";
+        var delBtn=" <button onclick=\"deleteEval('"+emp.emp_no+"','"+nameEsc+"')\" style=\"background:none;border:none;cursor:pointer;color:#C62828;font-size:11px\" title=\"この評価を削除\">🗑</button>";
         var fam=(e.familiarity==null?100:e.familiarity);
-        return "<div style=\"padding:3px 0;border-bottom:1px dashed #EEE;font-size:12px\"><b>"+e.name+"</b> <span class=\"badge "+sc+"\">"+e.score+"</span> <span style=\"color:#6A1B9A;font-size:11px\">把握"+fam+"%</span> <span style=\"color:#424242\">"+(e.comment||"(コメント無し)")+"</span> <span style=\"color:#BDBDBD;font-size:10px\">"+(e.date||"")+"</span>"+delBtn+"</div>";
+        return "<div style=\"padding:3px 0;border-bottom:1px dashed #EEE;font-size:12px\"><b>"+e.name+"</b> <span class=\"badge "+sc+"\">"+e.score+"</span> <span style=\"color:#6A1B9A;font-size:11px\">把握"+fam+"%</span> <span style=\"color:#424242\">"+(e.comment||"(コメント無し)")+"</span> <span style=\"color:#BDBDBD;font-size:10px\">"+(e.date||"")+"</span>"+editBtn+delBtn+"</div>";
       }).join("");
     }else{
-      details=admin?"<span style=\"color:#BDBDBD;font-size:12px\">未評価</span>":"<span style=\"color:#BDBDBD;font-size:12px\">あなたは未入力 (上のフォームから入力してください)</span>";
+      details="<span style=\"color:#BDBDBD;font-size:12px\">あなたは未入力 (上のフォームから入力してください)</span>";
     }
     // 成績: 達成率 / 完工利益結果 / 完工利益設定
     var ach=emp.achieve;
