@@ -139,6 +139,9 @@ tr:hover td{background:#FAFAFA}
       <div class="field" style="flex:1"><label>役職フィルタ</label>
         <select id="input-rf" onchange="renderInput()"><option value="">全役職</option></select>
       </div>
+      <div class="field" style="flex:1"><label>テーブル</label>
+        <select id="input-tf" onchange="renderInput()"><option value="">全テーブル</option></select>
+      </div>
       <div class="field" style="flex:1"><label>状態</label>
         <select id="input-ff" onchange="renderInput()"><option value="">全員</option><option value="未確定">未確定のみ (①未入力)</option><option value="入力済">入力済のみ</option><option value="役職変更">役職変更あり</option></select>
       </div>
@@ -158,6 +161,7 @@ tr:hover td{background:#FAFAFA}
     <div class="fr">
       <select id="meet-sf" onchange="renderMeet()"><option value="">全店舗</option></select>
       <select id="meet-rf" onchange="renderMeet()"><option value="">全役職</option></select>
+      <select id="meet-tf" onchange="renderMeet()"><option value="">全テーブル</option></select>
       <select id="meet-ff" onchange="renderMeet()"><option value="">全員</option><option value="未確定">未確定のみ (暫定未入力)</option><option value="入力済">①入力済のみ</option><option value="役職変更">役職変更あり</option></select>
       <button class="btn btn-sm" onclick="clearMeetFilters()" title="絞り込みをクリア">↻ クリア</button>
     </div>
@@ -182,6 +186,7 @@ tr:hover td{background:#FAFAFA}
   <div class="card"><div class="fr">
     <select id="final-sf" onchange="renderFinal()"><option value="">全店舗</option></select>
     <select id="final-rf" onchange="renderFinal()"><option value="">全役職</option></select>
+    <select id="final-tf" onchange="renderFinal()"><option value="">全テーブル</option></select>
     <select id="final-ff" onchange="renderFinal()"><option value="">全員</option><option value="未確定">未確定のみ (③未確定)</option><option value="入力済">②暫定済のみ</option><option value="役職変更">役職変更あり</option></select>
     <button class="btn btn-sm" onclick="clearFinalFilters()" title="絞り込みをクリア">↻ クリア</button>
   </div></div>
@@ -201,6 +206,7 @@ tr:hover td{background:#FAFAFA}
     <div class="fr">
       <select id="mig-sf" onchange="renderMigrate()"><option value="">全店舗</option></select>
       <select id="mig-rf" onchange="renderMigrate()"><option value="">全役職</option></select>
+      <select id="mig-tf" onchange="renderMigrate()"><option value="">全テーブル</option></select>
       <select id="mig-ff" onchange="renderMigrate()"><option value="">全員</option><option value="確定済">③確定済のみ</option></select>
       <button class="btn btn-sm" onclick="clearMigFilters()" title="絞り込みをクリア">↻ クリア</button>
     </div>
@@ -723,6 +729,14 @@ function init(){
       var el=document.getElementById(id);
       if(el)sortedRanks.forEach(function(r){el.add(new Option(r,r));});
     });
+    // テーブル絞り込み populate (EMPS.table37、is_mgr 除外)
+    var tbls={};
+    EMPS.forEach(function(e){if(e.is_mgr)return; if(e.table37)tbls[e.table37]=1;});
+    var sortedTbls=Object.keys(tbls).sort();
+    ['input-tf','meet-tf','final-tf','mig-tf'].forEach(function(id){
+      var el=document.getElementById(id);
+      if(el)sortedTbls.forEach(function(t){el.add(new Option(t,t));});
+    });
   })();
   // マネ事前評価タブの把握度プルダウン（0〜100% 5%刻み）
   (function(){
@@ -991,6 +1005,8 @@ function renderInput(){
   const ff=ffEl?ffEl.value:"";
   let emps=store?EMPS.filter(function(e){return e.store===store&&!e.is_mgr;}):[];
   if(rf)emps=emps.filter(function(e){return e.rank37===rf;});
+  const tfEl=document.getElementById("input-tf");const tf=tfEl?tfEl.value:"";
+  if(tf)emps=emps.filter(function(e){return e.table37===tf;});
   if(ff==="未確定")emps=emps.filter(function(e){return getStatus(e.name)===0;});
   if(ff==="入力済")emps=emps.filter(function(e){return getStatus(e.name)>=1;});
   if(ff==="役職変更")emps=emps.filter(function(e){return autoCalc(e).roleChanged;});
@@ -1122,25 +1138,30 @@ function closeM(){document.getElementById("modal-area").style.display="none";cur
 function clearMeetFilters(){
   document.getElementById("meet-sf").value="";
   document.getElementById("meet-rf").value="";
+  var tf=document.getElementById("meet-tf");if(tf)tf.value="";
   document.getElementById("meet-ff").value="";
   renderMeet();
 }
 function clearInputFilters(){
   var rf=document.getElementById("input-rf");if(rf)rf.value="";
+  var tf=document.getElementById("input-tf");if(tf)tf.value="";
   var ff=document.getElementById("input-ff");if(ff)ff.value="";
   renderInput();
 }
 function clearFinalFilters(){
   document.getElementById("final-sf").value="";
   var rf=document.getElementById("final-rf");if(rf)rf.value="";
+  var tf=document.getElementById("final-tf");if(tf)tf.value="";
   var ff=document.getElementById("final-ff");if(ff)ff.value="";
   renderFinal();
 }
 function renderMeet(){
   const sf=document.getElementById("meet-sf").value,ff=document.getElementById("meet-ff").value;
   const rf=document.getElementById("meet-rf").value;
+  const tfEl=document.getElementById("meet-tf");const tf=tfEl?tfEl.value:"";
   let emps=(sf?EMPS.filter(function(e){return e.store===sf;}):EMPS).filter(function(e){return !e.is_mgr;});
   if(rf)emps=emps.filter(function(e){return e.rank37===rf;});
+  if(tf)emps=emps.filter(function(e){return e.table37===tf;});
   if(ff==="未確定")emps=emps.filter(function(e){return getStatus(e.name)<2;});
   if(ff==="入力済")emps=emps.filter(function(e){return saves[e.name]&&saves[e.name].comment;});
   if(ff==="役職変更")emps=emps.filter(function(e){return autoCalc(e).roleChanged;});
@@ -1203,6 +1224,7 @@ function renderMeet(){
   }catch(e){console.warn("meet summary:",e);document.getElementById("meet-summary").innerHTML="";}
   document.getElementById("meet-tb").innerHTML=emps.map(function(emp){
     const au=autoCalc(emp),s=saves[emp.name]||{},hs=s.hDelta?s.hDelta+"→"+s.hRank+" "+s.hGrade:"—";
+    const partFlag=isPart(emp);
     const rOpts="<option value=\"\">--</option>"+RANKS_OLD.map(function(r){var mDef=s.mRank||s.hRank||"";return "<option"+(mDef===r?" selected":"")+">"+r+"</option>";}).join("");
     const gOpts="<option value=\"\">--</option>"+GRADES.map(function(g){return "<option value=\""+g+"号\""+(( s.mGrade||s.hGrade||"")===g+"号"?" selected":"")+">"+ g+"号</option>";}).join("");
     var hopeTip=s.comment?("上長コメント:\n"+s.comment).replace(/\"/g,'&quot;'):"";
@@ -1216,7 +1238,16 @@ function renderMeet(){
     if(st===1&&s.hDelta&&s.hRank&&s.hGrade){
       statusCell+='<br><button class="btn btn-sm" onclick="approveMeetFromHope(\''+emp.emp_no+'\',\''+emp.name+'\')" style="font-size:10px;padding:2px 6px;margin-top:3px;background:#FAEFDD;border-color:#C97A2E;color:#5C3210" title="現状の暫定値（未入力分は上長希望）で確定">✓ 確定</button>';
     }
-    return "<tr><td style=\"font-weight:700\">"+emp.name+"</td><td style=\"font-size:11px\">"+emp.store+"</td><td style=\"font-size:11px\">"+emp.rank37+" "+emp.grade37+"</td><td>"+pct(emp.achieve)+"</td><td style=\"font-size:11px\">"+au.delta+" "+au.rank+" "+au.grade+(au.roleChanged?" <span class=\"badge borange\">★</span>":"")+"</td><td style=\"font-size:11px"+(s.comment?";cursor:help;text-decoration:underline dotted;text-decoration-color:#90CAF9":"")+"\" title=\""+hopeTip+"\">"+hs+"</td><td><input type=\"text\" value=\""+(emp.memo||"").replace(/\"/g,'&quot;')+"\" onchange=\"svMemo('"+emp.emp_no+"','"+emp.name+"',this.value)\" style=\"font-size:11px;padding:3px;width:100%;color:#E65100\" placeholder=\"備考\"></td><td style=\"text-align:center\"><span class=\"meet-delta-cell\" style=\"font-weight:700;font-size:13px;color:"+mDeltaColor+"\">"+mDeltaAuto+"</span></td><td><div style=\"display:flex;gap:3px\"><select onchange=\"onMeetRankChange(this,'"+emp.emp_no+"','"+emp.name+"')\" style=\"font-size:11px;padding:3px;flex:1"+selBg+"\" class=\"meet-rank-sel\">"+rOpts+"</select><select onchange=\"onMeetGradeChange(this,'"+emp.emp_no+"','"+emp.name+"')\" style=\"font-size:11px;padding:3px;flex:1"+selBg+"\" class=\"meet-grade-sel\">"+gOpts+"</select></div><input type=\"text\" value=\""+(s.mMemo||"").replace(/\"/g,'&quot;')+"\" onchange=\"svK('"+emp.emp_no+"','"+emp.name+"','mMemo','meet_memo',this.value)\" style=\"font-size:11px;padding:3px;width:100%;margin-top:4px;background:#FFF9C4;border-color:#E5C896\" placeholder=\"会議メモ\"></td><td class=\"meet-preview\">"+previewHtml+"</td><td>"+statusCell+"</td></tr>";
+    var rgCell;
+    if(partFlag){
+      rgCell='<div style="display:flex;gap:3px">'
+        +'<input type="text" value="'+(s.mRank||'').replace(/"/g,'&quot;')+'" onchange="svK(\''+emp.emp_no+'\',\''+emp.name+'\',\'mRank\',\'meet_rank\',this.value)" style="font-size:11px;padding:3px;flex:1;background:#FFF3E0" placeholder="役職(自由)" title="パート - 自由入力">'
+        +'<input type="text" value="'+(s.mGrade||'').replace(/"/g,'&quot;')+'" onchange="svK(\''+emp.emp_no+'\',\''+emp.name+'\',\'mGrade\',\'meet_grade\',this.value)" style="font-size:11px;padding:3px;flex:1;background:#FFF3E0" placeholder="等級(自由)">'
+        +'</div>';
+    }else{
+      rgCell='<div style="display:flex;gap:3px"><select onchange="onMeetRankChange(this,\''+emp.emp_no+'\',\''+emp.name+'\')" style="font-size:11px;padding:3px;flex:1'+selBg+'" class="meet-rank-sel">'+rOpts+'</select><select onchange="onMeetGradeChange(this,\''+emp.emp_no+'\',\''+emp.name+'\')" style="font-size:11px;padding:3px;flex:1'+selBg+'" class="meet-grade-sel">'+gOpts+'</select></div>';
+    }
+    return "<tr><td style=\"font-weight:700\">"+emp.name+(partFlag?" <span class=\"badge bgray\" style=\"font-size:9px\">パート</span>":"")+"</td><td style=\"font-size:11px\">"+emp.store+"</td><td style=\"font-size:11px\">"+emp.rank37+" "+emp.grade37+"</td><td>"+pct(emp.achieve)+"</td><td style=\"font-size:11px\">"+au.delta+" "+au.rank+" "+au.grade+(au.roleChanged?" <span class=\"badge borange\">★</span>":"")+"</td><td style=\"font-size:11px"+(s.comment?";cursor:help;text-decoration:underline dotted;text-decoration-color:#90CAF9":"")+"\" title=\""+hopeTip+"\">"+hs+"</td><td><input type=\"text\" value=\""+(emp.memo||"").replace(/\"/g,'&quot;')+"\" onchange=\"svMemo('"+emp.emp_no+"','"+emp.name+"',this.value)\" style=\"font-size:11px;padding:3px;width:100%;color:#E65100\" placeholder=\"備考\"></td><td style=\"text-align:center\"><span class=\"meet-delta-cell\" style=\"font-weight:700;font-size:13px;color:"+mDeltaColor+"\">"+mDeltaAuto+"</span></td><td>"+rgCell+"<input type=\"text\" value=\""+(s.mMemo||"").replace(/\"/g,'&quot;')+"\" onchange=\"svK('"+emp.emp_no+"','"+emp.name+"','mMemo','meet_memo',this.value)\" style=\"font-size:11px;padding:3px;width:100%;margin-top:4px;background:#FFF9C4;border-color:#E5C896\" placeholder=\"会議メモ\"></td><td class=\"meet-preview\">"+previewHtml+"</td><td>"+statusCell+"</td></tr>";
   }).join("");
 }
 function approveMeetFromHope(empNo,name){
@@ -1269,7 +1300,8 @@ function formatSalaryPreview(monthly,diff,nextTarget){
   return html+'</div>';
 }
 function buildSalaryPreview(emp,r,g){
-  if(!emp||emp.base_pay===0||isPart(emp))return "<span style=\"color:#BDBDBD;font-size:11px\">—</span>";
+  if(isPart(emp))return "<span style=\"color:#1565C0;font-size:11px;font-weight:700\" title=\"パートの月収・年収は Excel を参照してください\">Excel参照</span>";
+  if(!emp||emp.base_pay===0)return "<span style=\"color:#BDBDBD;font-size:11px\">—</span>";
   if(!r||!g)return "<span style=\"color:#BDBDBD;font-size:11px\">未入力</span>";
   var m=calcMig(emp,r,g);
   if(!m||!m.nt)return "<span style=\"color:#BDBDBD;font-size:11px\">—</span>";
@@ -1352,8 +1384,10 @@ function renderFinal(){
   const sf=document.getElementById("final-sf").value;
   const rfEl=document.getElementById("final-rf");const rf=rfEl?rfEl.value:"";
   const ffEl=document.getElementById("final-ff");const ff=ffEl?ffEl.value:"";
+  const tfEl=document.getElementById("final-tf");const tf=tfEl?tfEl.value:"";
   let emps=(sf?EMPS.filter(function(e){return e.store===sf;}):EMPS).filter(function(e){return !e.is_mgr;});
   if(rf)emps=emps.filter(function(e){return e.rank37===rf;});
+  if(tf)emps=emps.filter(function(e){return e.table37===tf;});
   if(ff==="未確定")emps=emps.filter(function(e){return getStatus(e.name)<3;});
   if(ff==="入力済")emps=emps.filter(function(e){return getStatus(e.name)>=2;});
   if(ff==="役職変更")emps=emps.filter(function(e){return autoCalc(e).roleChanged;});
@@ -1427,11 +1461,20 @@ function renderFinal(){
   document.getElementById("final-tb").innerHTML=emps.map(function(emp){
     const s=saves[emp.name]||{},ms=s.mDelta?s.mDelta+"→"+(s.mRank||"")+" "+(s.mGrade||""):"—";
     const fR=s.fRank||"",fG=s.fGrade||"",conf=fR&&fG?fR+" "+fG:s.mRank&&s.mGrade?s.mRank+" "+s.mGrade:"";
+    const partFlag=isPart(emp);
     const rOpts="<option value=\"\">--</option>"+RANKS_OLD.map(function(r){var fRDef=fR||s.mRank||"";return "<option"+(fRDef===r?" selected":"")+">"+r+"</option>";}).join("");
     const gOpts="<option value=\"\">--</option>"+GRADES.map(function(g){return "<option value=\""+g+"号\""+(( fG||s.mGrade||"")===g+"号"?" selected":"")+">"+ g+"号</option>";}).join("");
     var fPrevR=fR||s.mRank||"",fPrevG=fG||s.mGrade||"";
     var fPreview=buildSalaryPreview(emp,fPrevR,fPrevG);
-    return "<tr><td style=\"font-weight:700\">"+emp.name+"</td><td style=\"font-size:11px\">"+emp.store+"</td><td style=\"font-size:11px\">"+emp.rank37+" "+emp.grade37+"</td><td>"+pct(emp.achieve)+"</td><td style=\"font-size:11px\">"+ms+"</td><td><input type=\"text\" value=\""+(emp.memo||"").replace(/\"/g,'&quot;')+"\" onchange=\"svMemo('"+emp.emp_no+"','"+emp.name+"',this.value)\" style=\"font-size:11px;padding:3px;width:100%;color:#E65100\" placeholder=\"備考\"></td><td><input type=\"text\" value=\""+(s.fDelta||s.mDelta||"")+"\" onchange=\"svK('"+emp.emp_no+"','"+emp.name+"','fDelta','final_delta',this.value)\" style=\"width:52px;font-size:12px;padding:3px 6px\"></td><td><select onchange=\"onFinalRankChange(this,'"+emp.emp_no+"','"+emp.name+"')\" style=\"font-size:11px;padding:3px\" class=\"final-rank-sel\">"+rOpts+"</select></td><td><select onchange=\"onFinalGradeChange(this,'"+emp.emp_no+"','"+emp.name+"')\" style=\"font-size:11px;padding:3px\" class=\"final-grade-sel\">"+gOpts+"</select></td><td style=\"font-weight:700;color:#C97A2E;font-size:12px\">"+conf+"</td><td><input type=\"text\" value=\""+(s.fMemo||"")+"\" onchange=\"svK('"+emp.emp_no+"','"+emp.name+"','fMemo','final_memo',this.value)\" style=\"font-size:11px;padding:3px\" placeholder=\"メモ\"></td><td class=\"final-preview\">"+fPreview+"</td><td>"+stBadge(getStatus(emp.name))+"</td></tr>";
+    var rCell,gCell;
+    if(partFlag){
+      rCell='<input type="text" value="'+(fR||'').replace(/"/g,'&quot;')+'" onchange="svK(\''+emp.emp_no+'\',\''+emp.name+'\',\'fRank\',\'final_rank\',this.value)" style="font-size:11px;padding:3px;width:100%;background:#FFF3E0" placeholder="役職(自由)" title="パート - 自由入力">';
+      gCell='<input type="text" value="'+(fG||'').replace(/"/g,'&quot;')+'" onchange="svK(\''+emp.emp_no+'\',\''+emp.name+'\',\'fGrade\',\'final_grade\',this.value)" style="font-size:11px;padding:3px;width:100%;background:#FFF3E0" placeholder="等級(自由)">';
+    }else{
+      rCell='<select onchange="onFinalRankChange(this,\''+emp.emp_no+'\',\''+emp.name+'\')" style="font-size:11px;padding:3px" class="final-rank-sel">'+rOpts+'</select>';
+      gCell='<select onchange="onFinalGradeChange(this,\''+emp.emp_no+'\',\''+emp.name+'\')" style="font-size:11px;padding:3px" class="final-grade-sel">'+gOpts+'</select>';
+    }
+    return "<tr><td style=\"font-weight:700\">"+emp.name+(partFlag?" <span class=\"badge bgray\" style=\"font-size:9px\">パート</span>":"")+"</td><td style=\"font-size:11px\">"+emp.store+"</td><td style=\"font-size:11px\">"+emp.rank37+" "+emp.grade37+"</td><td>"+pct(emp.achieve)+"</td><td style=\"font-size:11px\">"+ms+"</td><td><input type=\"text\" value=\""+(emp.memo||"").replace(/\"/g,'&quot;')+"\" onchange=\"svMemo('"+emp.emp_no+"','"+emp.name+"',this.value)\" style=\"font-size:11px;padding:3px;width:100%;color:#E65100\" placeholder=\"備考\"></td><td><input type=\"text\" value=\""+(s.fDelta||s.mDelta||"")+"\" onchange=\"svK('"+emp.emp_no+"','"+emp.name+"','fDelta','final_delta',this.value)\" style=\"width:52px;font-size:12px;padding:3px 6px\"></td><td>"+rCell+"</td><td>"+gCell+"</td><td style=\"font-weight:700;color:#C97A2E;font-size:12px\">"+conf+"</td><td><input type=\"text\" value=\""+(s.fMemo||"")+"\" onchange=\"svK('"+emp.emp_no+"','"+emp.name+"','fMemo','final_memo',this.value)\" style=\"font-size:11px;padding:3px\" placeholder=\"メモ\"></td><td class=\"final-preview\">"+fPreview+"</td><td>"+stBadge(getStatus(emp.name))+"</td></tr>";
   }).join("");
 }
 function onFinalRankChange(sel,empNo,name){
@@ -1632,14 +1675,17 @@ async function svK(empNo,name,lk,kk,val){
 function clearMigFilters(){
   document.getElementById("mig-sf").value="";
   document.getElementById("mig-rf").value="";
+  var tf=document.getElementById("mig-tf");if(tf)tf.value="";
   document.getElementById("mig-ff").value="";
   renderMigrate();
 }
 function renderMigrate(){
   const sf=document.getElementById("mig-sf").value,ff=document.getElementById("mig-ff").value;
   const rf=document.getElementById("mig-rf").value;
+  const tfEl=document.getElementById("mig-tf");const tf=tfEl?tfEl.value:"";
   let emps=(sf?EMPS.filter(function(e){return e.store===sf;}):EMPS).filter(function(e){return !e.is_mgr;});
   if(rf)emps=emps.filter(function(e){return e.rank37===rf;});
+  if(tf)emps=emps.filter(function(e){return e.table37===tf;});
   if(ff==="確定済")emps=emps.filter(function(e){return getStatus(e.name)===3;});
 
   // 集計サマリ
