@@ -1105,8 +1105,28 @@ function renderMeet(){
     var hopeTip=s.comment?("上長コメント:\n"+s.comment).replace(/\"/g,'&quot;'):"";
     var mDeltaAuto=calcMeetDelta(emp,s.mRank||s.hRank||"",s.mGrade||s.hGrade||"");
     var previewHtml=buildMeetPreview(emp,s.mRank||s.hRank||"",s.mGrade||s.hGrade||"");
-    return "<tr><td style=\"font-weight:700\">"+emp.name+"</td><td style=\"font-size:11px\">"+emp.store+"</td><td style=\"font-size:11px\">"+emp.rank37+" "+emp.grade37+"</td><td>"+pct(emp.achieve)+"</td><td style=\"font-size:11px\">"+au.delta+" "+au.rank+" "+au.grade+(au.roleChanged?" <span class=\"badge borange\">★</span>":"")+"</td><td style=\"font-size:11px"+(s.comment?";cursor:help;text-decoration:underline dotted;text-decoration-color:#90CAF9":"")+"\" title=\""+hopeTip+"\">"+hs+"</td><td><input type=\"text\" value=\""+(emp.memo||"").replace(/\"/g,'&quot;')+"\" onchange=\"svMemo('"+emp.emp_no+"','"+emp.name+"',this.value)\" style=\"font-size:11px;padding:3px;width:100%;color:#E65100\" placeholder=\"備考\"></td><td style=\"text-align:center\"><span class=\"meet-delta-cell\" style=\"font-weight:700;font-size:13px;color:#1565C0\">"+mDeltaAuto+"</span></td><td><select onchange=\"onMeetRankChange(this,'"+emp.emp_no+"','"+emp.name+"')\" style=\"font-size:11px;padding:3px\" class=\"meet-rank-sel\">"+rOpts+"</select></td><td><select onchange=\"onMeetGradeChange(this,'"+emp.emp_no+"','"+emp.name+"')\" style=\"font-size:11px;padding:3px\" class=\"meet-grade-sel\">"+gOpts+"</select></td><td><input type=\"text\" value=\""+(s.mMemo||"")+"\" onchange=\"svK('"+emp.emp_no+"','"+emp.name+"','mMemo','meet_memo',this.value)\" style=\"font-size:11px;padding:3px\" placeholder=\"メモ\"></td><td class=\"meet-preview\">"+previewHtml+"</td><td>"+stBadge(getStatus(emp.name))+"</td></tr>";
+    // 上長希望のまま暫定確定するボタン (状態=1 + 上長希望ありの行のみ)
+    var st=getStatus(emp.name);
+    var statusCell=stBadge(st);
+    if(st===1&&s.hDelta&&s.hRank&&s.hGrade){
+      statusCell+='<br><button class="btn btn-sm" onclick="approveMeetFromHope(\''+emp.emp_no+'\',\''+emp.name+'\')" style="font-size:10px;padding:2px 6px;margin-top:3px;background:#FAEFDD;border-color:#C97A2E;color:#5C3210" title="上長希望をそのまま暫定値に反映">✓ 希望で確定</button>';
+    }
+    return "<tr><td style=\"font-weight:700\">"+emp.name+"</td><td style=\"font-size:11px\">"+emp.store+"</td><td style=\"font-size:11px\">"+emp.rank37+" "+emp.grade37+"</td><td>"+pct(emp.achieve)+"</td><td style=\"font-size:11px\">"+au.delta+" "+au.rank+" "+au.grade+(au.roleChanged?" <span class=\"badge borange\">★</span>":"")+"</td><td style=\"font-size:11px"+(s.comment?";cursor:help;text-decoration:underline dotted;text-decoration-color:#90CAF9":"")+"\" title=\""+hopeTip+"\">"+hs+"</td><td><input type=\"text\" value=\""+(emp.memo||"").replace(/\"/g,'&quot;')+"\" onchange=\"svMemo('"+emp.emp_no+"','"+emp.name+"',this.value)\" style=\"font-size:11px;padding:3px;width:100%;color:#E65100\" placeholder=\"備考\"></td><td style=\"text-align:center\"><span class=\"meet-delta-cell\" style=\"font-weight:700;font-size:13px;color:#1565C0\">"+mDeltaAuto+"</span></td><td><select onchange=\"onMeetRankChange(this,'"+emp.emp_no+"','"+emp.name+"')\" style=\"font-size:11px;padding:3px\" class=\"meet-rank-sel\">"+rOpts+"</select></td><td><select onchange=\"onMeetGradeChange(this,'"+emp.emp_no+"','"+emp.name+"')\" style=\"font-size:11px;padding:3px\" class=\"meet-grade-sel\">"+gOpts+"</select></td><td><input type=\"text\" value=\""+(s.mMemo||"")+"\" onchange=\"svK('"+emp.emp_no+"','"+emp.name+"','mMemo','meet_memo',this.value)\" style=\"font-size:11px;padding:3px\" placeholder=\"メモ\"></td><td class=\"meet-preview\">"+previewHtml+"</td><td>"+statusCell+"</td></tr>";
   }).join("");
+}
+function approveMeetFromHope(empNo,name){
+  var s=saves[name];
+  if(!s||!s.hRank||!s.hGrade){alert("上長希望が入力されていません");return;}
+  if(!confirm(name+" を上長希望「"+(s.hDelta||"")+" / "+s.hRank+" "+s.hGrade+"」で暫定確定しますか?"))return;
+  var emp=EMPS.find(function(e){return e.emp_no===empNo;});
+  // 役職・等級を保存
+  svK(empNo,name,'mRank','meet_rank',s.hRank);
+  svK(empNo,name,'mGrade','meet_grade',s.hGrade);
+  // 暫定変動を自動計算して保存
+  var delta=calcMeetDelta(emp,s.hRank,s.hGrade);
+  svK(empNo,name,'mDelta','meet_delta',delta);
+  // 再描画
+  renderMeet();
 }
 // マネージャーの対象店舗（emp.store と異なる場合の上書き、現在=37期）
 const MGR_TARGET_AREA={
