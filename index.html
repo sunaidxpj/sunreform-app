@@ -1225,13 +1225,16 @@ function buildSalaryPreview(emp,r,g){
 }
 function buildMeetPreview(emp,mR,mG){return buildSalaryPreview(emp,mR,mG);}
 function meetVsHopeBg(emp,mR,mG){
+  if(!emp||!mR||!mG)return '';
   var s=saves[emp.name]||{};
-  if(!s.hRank||!s.hGrade||!mR||!mG)return '';
-  var iH=lIdx(s.hRank,s.hGrade);
+  // 上長希望が設定済みならそれ、なければ37期(現在)を基準にする
+  var baseR=s.hRank||emp.rank37, baseG=s.hGrade||emp.grade37;
+  if(!baseR||!baseG)return '';
+  var iH=lIdx(baseR,baseG);
   var iM=lIdx(mR,String(mG).replace('号',''));
   if(iH<0||iM<0)return '';
-  if(iM>iH)return ';background:#C8E6C9';  // 暫定 > 希望 = 上げ = 緑
-  if(iM<iH)return ';background:#FFCDD2';  // 暫定 < 希望 = 下げ = 赤
+  if(iM>iH)return ';background-color:#C8E6C9';  // 上げ = 緑
+  if(iM<iH)return ';background-color:#FFCDD2';  // 下げ = 赤
   return '';
 }
 function calcMeetDelta(emp,mR,mG){
@@ -1246,8 +1249,10 @@ function calcMeetDelta(emp,mR,mG){
 function updateMeetSelectBg(tr,emp,mR,mG){
   var s=saves[emp.name]||{};
   var color='';
-  if(s.hRank&&s.hGrade&&mR&&mG){
-    var iH=lIdx(s.hRank,s.hGrade);
+  // 上長希望優先、なければ 37期 (現在) と比較
+  var baseR=s.hRank||emp.rank37, baseG=s.hGrade||emp.grade37;
+  if(baseR&&baseG&&mR&&mG){
+    var iH=lIdx(baseR,baseG);
     var iM=lIdx(mR,String(mG).replace('号',''));
     if(iH>=0&&iM>=0){
       if(iM>iH)color='#C8E6C9';      // 緑 (上げ)
@@ -1255,8 +1260,8 @@ function updateMeetSelectBg(tr,emp,mR,mG){
     }
   }
   var rs=tr.querySelector(".meet-rank-sel"),gs=tr.querySelector(".meet-grade-sel");
-  if(rs)rs.style.background=color;
-  if(gs)gs.style.background=color;
+  if(rs){rs.style.backgroundColor=color; rs.style.transition='background-color .15s';}
+  if(gs){gs.style.backgroundColor=color; gs.style.transition='background-color .15s';}
 }
 function meetDeltaColorOf(d){
   if(!d||d==="—"||d==="保留")return "#212121";
