@@ -201,7 +201,7 @@ tr:hover td{background:#FAFAFA}
     </tr>
     <tr>
       <th style="width:90px">氏名</th><th style="width:70px">店舗</th><th style="width:80px">37期等級</th>
-      <th style="width:80px">③確定等級</th>
+      <th style="width:95px">採用等級<br><span style="font-weight:normal;font-size:10px;color:#757575">(③確定→②暫定→①希望)</span></th>
       <th style="width:75px">旧テーブル</th><th style="width:60px">年齢</th><th style="width:85px">旧総額</th>
       <th style="width:75px">新テーブル</th><th style="width:80px">新年齢給</th><th style="width:90px">新役職</th><th style="width:70px">新役職手当</th><th style="width:70px">新等級</th>
       <th style="width:210px">月収 / 年収 / 差異</th><th style="width:95px">来期利益設定</th>
@@ -1595,7 +1595,10 @@ function renderMigrate(){
   emps.forEach(function(emp){
     if(emp.base_pay===0&&emp.rank_pay===0)return;
     if(isPart(emp))return;
-    const s=saves[emp.name]||{},fR=s.fRank||s.mRank||null,fG=s.fGrade||s.mGrade||null;
+    const s=saves[emp.name]||{};
+    var fR=s.fRank||s.mRank||s.hRank||emp.rank37||null;
+    var fG=s.fGrade||s.mGrade||s.hGrade||emp.grade37||null;
+    var stageLabel=s.fRank?'③確定':s.mRank?'②暫定':s.hRank?'①上長希望':'37期';
     const m=calcMig(emp,fR,fG);
     b.cnt++;b.oldM+=m.ot;b.newM+=m.nt;b.diffSum+=m.diff;
     if(m.diff===0)b.diff0++;
@@ -1625,8 +1628,11 @@ function renderMigrate(){
   document.getElementById("mig-summary").innerHTML=sumHtml;
 
   document.getElementById("mig-tb").innerHTML=emps.map(function(emp){
-    const s=saves[emp.name]||{},fR=s.fRank||s.mRank||null,fG=s.fGrade||s.mGrade||null;
-    const cs=fR&&fG?fR+" "+fG:"（査定前）";
+    const s=saves[emp.name]||{};
+    var fR=s.fRank||s.mRank||s.hRank||emp.rank37||null;
+    var fG=s.fGrade||s.mGrade||s.hGrade||emp.grade37||null;
+    var stageLabel=s.fRank?'③確定':s.mRank?'②暫定':s.hRank?'①上長希望':'37期';
+    const cs=fR&&fG?'<span style="font-size:10px;color:#757575">'+stageLabel+'</span><br>'+fR+" "+fG:"（査定前）";
     const age=getAge(emp.birth_date);
     if(emp.base_pay===0&&emp.rank_pay===0)return "<tr><td style=\"font-weight:700\">"+emp.name+"</td><td style=\"font-size:11px\">"+emp.store+"</td><td style=\"font-size:11px\">"+emp.rank37+" "+emp.grade37+"</td><td style=\"font-size:11px\">"+cs+"</td><td colspan=\"10\" style=\"color:#BDBDBD;font-size:12px\">給与データなし</td></tr>";
     // calcMig での自動推奨
