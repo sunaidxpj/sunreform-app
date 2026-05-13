@@ -1474,7 +1474,12 @@ function renderFinal(){
       rCell='<select onchange="onFinalRankChange(this,\''+emp.emp_no+'\',\''+emp.name+'\')" style="font-size:11px;padding:3px" class="final-rank-sel">'+rOpts+'</select>';
       gCell='<select onchange="onFinalGradeChange(this,\''+emp.emp_no+'\',\''+emp.name+'\')" style="font-size:11px;padding:3px" class="final-grade-sel">'+gOpts+'</select>';
     }
-    return "<tr><td style=\"font-weight:700\">"+emp.name+(partFlag?" <span class=\"badge bgray\" style=\"font-size:9px\">パート</span>":"")+"</td><td style=\"font-size:11px\">"+emp.store+"</td><td style=\"font-size:11px\">"+emp.rank37+" "+emp.grade37+"</td><td>"+pct(emp.achieve)+"</td><td style=\"font-size:11px\">"+ms+"</td><td><input type=\"text\" value=\""+(emp.memo||"").replace(/\"/g,'&quot;')+"\" onchange=\"svMemo('"+emp.emp_no+"','"+emp.name+"',this.value)\" style=\"font-size:11px;padding:3px;width:100%;color:#E65100\" placeholder=\"備考\"></td><td><input type=\"text\" value=\""+(s.fDelta||s.mDelta||"")+"\" onchange=\"svK('"+emp.emp_no+"','"+emp.name+"','fDelta','final_delta',this.value)\" style=\"width:52px;font-size:12px;padding:3px 6px\"></td><td>"+rCell+"</td><td>"+gCell+"</td><td style=\"font-weight:700;color:#C97A2E;font-size:12px\">"+conf+"</td><td><input type=\"text\" value=\""+(s.fMemo||"")+"\" onchange=\"svK('"+emp.emp_no+"','"+emp.name+"','fMemo','final_memo',this.value)\" style=\"font-size:11px;padding:3px\" placeholder=\"メモ\"></td><td class=\"final-preview\">"+fPreview+"</td><td>"+stBadge(getStatus(emp.name))+"</td></tr>";
+    var fSt=getStatus(emp.name);
+    var fStatusCell=stBadge(fSt);
+    if((fSt>=1||s.mRank||s.hRank)&&fSt<3){
+      fStatusCell+='<br><button class="btn btn-sm" onclick="approveFinalFromMeet(\''+emp.emp_no+'\',\''+emp.name+'\')" style="font-size:10px;padding:2px 6px;margin-top:3px;background:#FFEBEE;border-color:#C62828;color:#C62828" title="現状の確定値（未入力分は ②暫定 → ①希望 で fallback）で確定">✓ 確定</button>';
+    }
+    return "<tr><td style=\"font-weight:700\">"+emp.name+(partFlag?" <span class=\"badge bgray\" style=\"font-size:9px\">パート</span>":"")+"</td><td style=\"font-size:11px\">"+emp.store+"</td><td style=\"font-size:11px\">"+emp.rank37+" "+emp.grade37+"</td><td>"+pct(emp.achieve)+"</td><td style=\"font-size:11px\">"+ms+"</td><td><input type=\"text\" value=\""+(emp.memo||"").replace(/\"/g,'&quot;')+"\" onchange=\"svMemo('"+emp.emp_no+"','"+emp.name+"',this.value)\" style=\"font-size:11px;padding:3px;width:100%;color:#E65100\" placeholder=\"備考\"></td><td><input type=\"text\" class=\"final-delta-input\" value=\""+(s.fDelta||s.mDelta||"")+"\" onchange=\"svK('"+emp.emp_no+"','"+emp.name+"','fDelta','final_delta',this.value)\" style=\"width:52px;font-size:12px;padding:3px 6px\"></td><td>"+rCell+"</td><td>"+gCell+"</td><td class=\"final-conf-cell\" style=\"font-weight:700;color:#C97A2E;font-size:12px\">"+conf+"</td><td><input type=\"text\" value=\""+(s.fMemo||"")+"\" onchange=\"svK('"+emp.emp_no+"','"+emp.name+"','fMemo','final_memo',this.value)\" style=\"font-size:11px;padding:3px\" placeholder=\"メモ\"></td><td class=\"final-preview\">"+fPreview+"</td><td>"+fStatusCell+"</td></tr>";
   }).join("");
 }
 function onFinalRankChange(sel,empNo,name){
@@ -1482,16 +1487,40 @@ function onFinalRankChange(sel,empNo,name){
   var gradeSel=tr.querySelector(".final-grade-sel");
   var emp=EMPS.find(function(e){return e.emp_no===empNo;});
   svK(empNo,name,'fRank','final_rank',sel.value);
-  var pr=tr.querySelector(".final-preview");
-  if(pr)pr.innerHTML=buildSalaryPreview(emp,sel.value,gradeSel.value);
+  updateFinalRowDerived(tr,emp,sel.value,gradeSel.value);
 }
 function onFinalGradeChange(sel,empNo,name){
   var tr=sel.closest("tr");
   var rankSel=tr.querySelector(".final-rank-sel");
   var emp=EMPS.find(function(e){return e.emp_no===empNo;});
   svK(empNo,name,'fGrade','final_grade',sel.value);
+  updateFinalRowDerived(tr,emp,rankSel.value,sel.value);
+}
+function updateFinalRowDerived(tr,emp,fR,fG){
+  // プレビュー（月収/年収/差/設定）
   var pr=tr.querySelector(".final-preview");
-  if(pr)pr.innerHTML=buildSalaryPreview(emp,rankSel.value,sel.value);
+  if(pr)pr.innerHTML=buildSalaryPreview(emp,fR,fG);
+  // 確定変動 (fDelta) 自動再計算
+  if(fR&&fG){
+    var delta=calcMeetDelta(emp,fR,fG);
+    var di=tr.querySelector(".final-delta-input");
+    if(di)di.value=delta;
+    svK(emp.emp_no,emp.name,'fDelta','final_delta',delta);
+  }
+  // 確定後等級セル
+  var ce=tr.querySelector(".final-conf-cell");
+  if(ce)ce.textContent=fR&&fG?fR+" "+fG:"";
+}
+function approveFinalFromMeet(empNo,name){
+  var s=saves[name]||{};
+  var r=s.fRank||s.mRank||s.hRank, g=s.fGrade||s.mGrade||s.hGrade;
+  if(!r||!g){alert("確定 / 暫定 / 希望 のいずれかを入力してください");return;}
+  var emp=EMPS.find(function(e){return e.emp_no===empNo;});
+  svK(empNo,name,'fRank','final_rank',r);
+  svK(empNo,name,'fGrade','final_grade',g);
+  var delta=calcMeetDelta(emp,r,g);
+  svK(empNo,name,'fDelta','final_delta',delta);
+  renderFinal();
 }
 
 function calcPreview(empName, rank, grade){
