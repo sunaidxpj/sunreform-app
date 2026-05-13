@@ -186,6 +186,7 @@ tr:hover td{background:#FAFAFA}
     <div style="font-size:12px;color:#757575;margin-bottom:10px">旧総額（年齢給＋役職等級手当＋LP¥45,000）を維持したまま新テーブルの等級を逆算。新役職・新等級は手動で上書き可能（Kintoneに保存）。減給者ゼロ、最大差額は号数切り上げ誤差のみ。</div>
     <div class="fr">
       <select id="mig-sf" onchange="renderMigrate()"><option value="">全店舗</option></select>
+      <select id="mig-rf" onchange="renderMigrate()"><option value="">全役職</option></select>
       <select id="mig-ff" onchange="renderMigrate()"><option value="">全員</option><option value="確定済">③確定済のみ</option></select>
       <button class="btn btn-sm" onclick="clearMigFilters()" title="絞り込みをクリア">↻ クリア</button>
     </div>
@@ -699,12 +700,14 @@ function init(){
   ["meet-sf","final-sf","mig-sf"].forEach(function(id){
     const el=document.getElementById(id);STORES.forEach(function(s){el.add(new Option(s,s));});
   });
-  // ②会議タブの役職フィルタを EMPS から populate（is_mgr 除外）
+  // ②会議/④移行タブの役職フィルタを EMPS から populate（is_mgr 除外）
   (function(){
     var ranks={};
     EMPS.forEach(function(e){if(e.is_mgr)return; if(e.rank37)ranks[e.rank37]=1;});
     var rf=document.getElementById("meet-rf");
     Object.keys(ranks).sort().forEach(function(r){rf.add(new Option(r,r));});
+    var mrf=document.getElementById("mig-rf");
+    if(mrf)Object.keys(ranks).sort().forEach(function(r){mrf.add(new Option(r,r));});
   })();
   // マネ事前評価タブの把握度プルダウン（0〜100% 5%刻み）
   (function(){
@@ -1582,12 +1585,15 @@ async function svK(empNo,name,lk,kk,val){
 
 function clearMigFilters(){
   document.getElementById("mig-sf").value="";
+  document.getElementById("mig-rf").value="";
   document.getElementById("mig-ff").value="";
   renderMigrate();
 }
 function renderMigrate(){
   const sf=document.getElementById("mig-sf").value,ff=document.getElementById("mig-ff").value;
+  const rf=document.getElementById("mig-rf").value;
   let emps=(sf?EMPS.filter(function(e){return e.store===sf;}):EMPS).filter(function(e){return !e.is_mgr;});
+  if(rf)emps=emps.filter(function(e){return e.rank37===rf;});
   if(ff==="確定済")emps=emps.filter(function(e){return getStatus(e.name)===3;});
 
   // 集計サマリ
