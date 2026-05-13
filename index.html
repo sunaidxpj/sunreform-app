@@ -140,7 +140,10 @@ tr:hover td{background:#FAFAFA}
         <select id="input-rf" onchange="renderInput()"><option value="">全役職</option></select>
       </div>
       <div class="field" style="flex:1"><label>状態</label>
-        <select id="input-ff" onchange="renderInput()"><option value="">全員</option><option value="未確定">未確定のみ</option><option value="入力済">入力済のみ</option></select>
+        <select id="input-ff" onchange="renderInput()"><option value="">全員</option><option value="未確定">未確定のみ (①未入力)</option><option value="入力済">入力済のみ</option><option value="役職変更">役職変更あり</option></select>
+      </div>
+      <div class="field" style="flex:0 0 auto;align-self:flex-end"><label>&nbsp;</label>
+        <button class="btn btn-sm" onclick="clearInputFilters()" title="絞り込みをクリア">↻ クリア</button>
       </div>
       <div class="field" style="flex:1"><label>入力進捗</label>
         <div id="prog-store" style="font-size:13px;padding-top:4px;color:#757575">—</div>
@@ -176,7 +179,12 @@ tr:hover td{background:#FAFAFA}
       <button class="btn btn-sm btn-red" onclick="lockFinal()">ロックする</button>
     </div>
   </div>
-  <div class="card"><div class="fr"><select id="final-sf" onchange="renderFinal()"><option value="">全店舗</option></select></div></div>
+  <div class="card"><div class="fr">
+    <select id="final-sf" onchange="renderFinal()"><option value="">全店舗</option></select>
+    <select id="final-rf" onchange="renderFinal()"><option value="">全役職</option></select>
+    <select id="final-ff" onchange="renderFinal()"><option value="">全員</option><option value="未確定">未確定のみ (③未確定)</option><option value="入力済">②暫定済のみ</option><option value="役職変更">役職変更あり</option></select>
+    <button class="btn btn-sm" onclick="clearFinalFilters()" title="絞り込みをクリア">↻ クリア</button>
+  </div></div>
   <div id="final-summary"></div>
   <div class="card" style="padding:0"><div class="tw"><table><thead><tr>
     <th style="width:90px">氏名</th><th style="width:75px">店舗</th><th style="width:85px">37期等級</th>
@@ -711,7 +719,7 @@ function init(){
     var ranks={};
     EMPS.forEach(function(e){if(e.is_mgr)return; if(e.rank37)ranks[e.rank37]=1;});
     var sortedRanks=Object.keys(ranks).sort();
-    ['meet-rf','mig-rf','input-rf'].forEach(function(id){
+    ['meet-rf','mig-rf','input-rf','final-rf'].forEach(function(id){
       var el=document.getElementById(id);
       if(el)sortedRanks.forEach(function(r){el.add(new Option(r,r));});
     });
@@ -985,6 +993,7 @@ function renderInput(){
   if(rf)emps=emps.filter(function(e){return e.rank37===rf;});
   if(ff==="未確定")emps=emps.filter(function(e){return getStatus(e.name)===0;});
   if(ff==="入力済")emps=emps.filter(function(e){return getStatus(e.name)>=1;});
+  if(ff==="役職変更")emps=emps.filter(function(e){return autoCalc(e).roleChanged;});
   const done=emps.filter(function(e){return getStatus(e.name)>=1;}).length;
   document.getElementById("prog-store").textContent=store?done+"/"+emps.length+"名":"";
   document.getElementById("prog-bar").style.width=emps.length?(done/emps.length*100)+"%":"0%";
@@ -1113,6 +1122,17 @@ function clearMeetFilters(){
   document.getElementById("meet-rf").value="";
   document.getElementById("meet-ff").value="";
   renderMeet();
+}
+function clearInputFilters(){
+  var rf=document.getElementById("input-rf");if(rf)rf.value="";
+  var ff=document.getElementById("input-ff");if(ff)ff.value="";
+  renderInput();
+}
+function clearFinalFilters(){
+  document.getElementById("final-sf").value="";
+  var rf=document.getElementById("final-rf");if(rf)rf.value="";
+  var ff=document.getElementById("final-ff");if(ff)ff.value="";
+  renderFinal();
 }
 function renderMeet(){
   const sf=document.getElementById("meet-sf").value,ff=document.getElementById("meet-ff").value;
@@ -1328,7 +1348,13 @@ function onMeetGradeChange(sel,empNo,name){
 
 function renderFinal(){
   const sf=document.getElementById("final-sf").value;
+  const rfEl=document.getElementById("final-rf");const rf=rfEl?rfEl.value:"";
+  const ffEl=document.getElementById("final-ff");const ff=ffEl?ffEl.value:"";
   let emps=(sf?EMPS.filter(function(e){return e.store===sf;}):EMPS).filter(function(e){return !e.is_mgr;});
+  if(rf)emps=emps.filter(function(e){return e.rank37===rf;});
+  if(ff==="未確定")emps=emps.filter(function(e){return getStatus(e.name)<3;});
+  if(ff==="入力済")emps=emps.filter(function(e){return getStatus(e.name)>=2;});
+  if(ff==="役職変更")emps=emps.filter(function(e){return autoCalc(e).roleChanged;});
   // 役員会集計
   try{
     var b={auto_d:0,hope_d:0,meet_d:0,final_d:0,auto_n:0,hope_n:0,meet_n:0,final_n:0,old_m:0,ach_sum:0,ach_cnt:0,inp3:0,cnt:0,retired:0,tgt:0,jinji:0};
