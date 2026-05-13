@@ -120,6 +120,7 @@ tr:hover td{background:#FAFAFA}
   <div class="tab locked" id="tab-final" onclick="tryUnlock()">🔒 ③役員会（確定）</div>
   <div class="tab locked" id="tab-migrate" onclick="tryUnlockTab(&#34;migrate&#34;)">🔒 ④新テーブル移行</div>
   <div class="tab locked" id="tab-newtable" onclick="tryUnlockTab(&#34;newtable&#34;)">🔒 📋 新給与テーブル(7月)</div>
+  <div class="tab locked" id="tab-ref37" onclick="tryUnlockTab(&#34;ref37&#34;)">🔒 📄 37期参考</div>
   <div class="tab" id="tab-store" onclick="showTab(&#34;store&#34;)">店舗別比較</div>
   <div class="tab locked" id="tab-eval" onclick="tryUnlockEval()">🔒 マネ事前評価</div>
   <div class="tab locked" id="tab-mgr" onclick="tryUnlockMgr()">🔒 マネージャー査定</div>
@@ -235,6 +236,18 @@ tr:hover td{background:#FAFAFA}
   <div class="card">
     <div class="ct">🎓 資格手当一覧</div>
     <div id="nt-quals"></div>
+  </div>
+</div>
+<div id="v-ref37" style="display:none">
+  <div class="card">
+    <div class="ct">📄 37期 参考データ（査定表・昨年分）</div>
+    <div style="font-size:12px;color:#757575">36期/37期の全社員 達成率・利益設定・人件費の参考表（編集不可）。</div>
+  </div>
+  <div class="card" style="padding:0">
+    <embed src="37ki_reference.pdf" type="application/pdf" style="width:100%;height:calc(100vh - 220px);min-height:600px;border:0" />
+    <div style="padding:8px 12px;background:#FAFAFA;border-top:1px solid #E0E0E0;font-size:11px;color:#757575;text-align:right">
+      <a href="37ki_reference.pdf" target="_blank" rel="noopener" style="color:#1565C0;text-decoration:none">📥 別ウィンドウで開く / DL</a>
+    </div>
   </div>
 </div>
 <div id="v-store" style="display:none">
@@ -660,10 +673,11 @@ function showTab(t){
   if(t==="final"&&!canAccess("final")){denyAlert("final");return;}
   if(t==="migrate"&&!canAccess("table")){denyAlert("table");return;}
   if(t==="newtable"&&!canAccess("table")){denyAlert("table");return;}
+  if(t==="ref37"&&!canAccess("table")){denyAlert("table");return;}
   if(t==="mgr"&&!canAccess("mgr")){denyAlert("mgr");return;}
   if(t==="eval"&&!canAccess("eval")){denyAlert("eval");return;}
   if(t==="perm"&&!permUnlocked){tryUnlockPerm();return;}
-  ["input","meet","final","migrate","newtable","store","mgr","eval","audit","perm","admin"].forEach(function(id){
+  ["input","meet","final","migrate","newtable","ref37","store","mgr","eval","audit","perm","admin"].forEach(function(id){
     document.getElementById("v-"+id).style.display=id===t?"block":"none";
     const tb=document.getElementById("tab-"+id);
     if(tb)tb.classList.toggle("on",id===t);
