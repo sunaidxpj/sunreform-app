@@ -1156,7 +1156,8 @@ function calcMeetDelta(emp,mR,mG){
   var g=mG.replace("号","");
   var i37=lIdx(emp.rank37,emp.grade37),iM=lIdx(mR,g);
   if(i37<0||iM<0)return "—";
-  var d=i37-iM; // ラダーは「上位ほどindex小、下位ほどindex大」なので、上昇=37期 - 暫定
+  // ラダーは下位→上位の順で並ぶ(autoCalcのidx+dと同方向)。上昇=暫定 - 37期
+  var d=iM-i37;
   return dStr(d);
 }
 function onMeetRankChange(sel,empNo,name){
