@@ -1693,6 +1693,16 @@ function adjustedMig(emp,newRank,newGrade,newTbl){
   var nextTarget=Math.ceil(jinji/distRate/100000)*100000;
   return{na:na,rp:rp,ngp:ngp,nt:nt,diff:nt-ot,nextTarget:nextTarget};
 }
+function findBestNewGradeForRole(emp,newRank,tbl){
+  // 旧総額を維持できる最適な新等級を返す ("G-1号"等)
+  var certAllow=emp.cert_allow||0;
+  var ot=emp.base_pay+emp.rank_pay+45000+certAllow;
+  var na=getAP(getAge(emp.birth_date),tbl);
+  var rp=RANK_PAY[newRank]||0;
+  var target=ot-na-rp-45000-certAllow;
+  var fg=findGrade(target,tbl);
+  return fg?fg.grade:null;
+}
 function onMigRankChange(sel,empNo,name){
   var tr=sel.closest("tr");
   var emp=EMPS.find(function(e){return e.emp_no===empNo;});
@@ -1704,6 +1714,12 @@ function onMigRankChange(sel,empNo,name){
   sel.style.background=changed?'#FFF3E0':'';
   sel.style.color=changed?'#E65100':'';
   sel.style.fontWeight=changed?'700':'';
+  // 新役職に合わせて最適な新等級を自動選択
+  var bestGrade=findBestNewGradeForRole(emp,sel.value,tbl);
+  if(bestGrade){
+    gradeSel.value=bestGrade;
+    svK(empNo,name,'nGrade','new_grade',bestGrade);
+  }
   // 再計算
   updateMigRow(tr,emp,sel.value,gradeSel.value,tbl);
 }
