@@ -1158,7 +1158,6 @@ function renderMeet(){
 function approveMeetFromHope(empNo,name){
   var s=saves[name];
   if(!s||!s.hRank||!s.hGrade){alert("上長希望が入力されていません");return;}
-  if(!confirm(name+" を上長希望「"+(s.hDelta||"")+" / "+s.hRank+" "+s.hGrade+"」で暫定確定しますか?"))return;
   var emp=EMPS.find(function(e){return e.emp_no===empNo;});
   // 役職・等級を保存
   svK(empNo,name,'mRank','meet_rank',s.hRank);
