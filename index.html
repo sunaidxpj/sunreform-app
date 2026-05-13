@@ -136,6 +136,9 @@ tr:hover td{background:#FAFAFA}
       <div class="field" style="flex:2"><label>店舗</label>
         <select id="sel-store" onchange="renderInput()"><option value="">-- 選択してください --</option></select>
       </div>
+      <div class="field" style="flex:1"><label>役職フィルタ</label>
+        <select id="input-rf" onchange="renderInput()"><option value="">全役職</option></select>
+      </div>
       <div class="field" style="flex:1"><label>入力進捗</label>
         <div id="prog-store" style="font-size:13px;padding-top:4px;color:#757575">—</div>
         <div class="prog-bar-wrap"><div class="prog-bar-fill" id="prog-bar" style="width:0%"></div></div>
@@ -700,14 +703,15 @@ function init(){
   ["meet-sf","final-sf","mig-sf"].forEach(function(id){
     const el=document.getElementById(id);STORES.forEach(function(s){el.add(new Option(s,s));});
   });
-  // ②会議/④移行タブの役職フィルタを EMPS から populate（is_mgr 除外）
+  // ①入力/②会議/④移行タブの役職フィルタを EMPS から populate（is_mgr 除外）
   (function(){
     var ranks={};
     EMPS.forEach(function(e){if(e.is_mgr)return; if(e.rank37)ranks[e.rank37]=1;});
-    var rf=document.getElementById("meet-rf");
-    Object.keys(ranks).sort().forEach(function(r){rf.add(new Option(r,r));});
-    var mrf=document.getElementById("mig-rf");
-    if(mrf)Object.keys(ranks).sort().forEach(function(r){mrf.add(new Option(r,r));});
+    var sortedRanks=Object.keys(ranks).sort();
+    ['meet-rf','mig-rf','input-rf'].forEach(function(id){
+      var el=document.getElementById(id);
+      if(el)sortedRanks.forEach(function(r){el.add(new Option(r,r));});
+    });
   })();
   // マネ事前評価タブの把握度プルダウン（0〜100% 5%刻み）
   (function(){
@@ -970,7 +974,10 @@ function yen(n){return n?"¥"+Math.round(n).toLocaleString("ja-JP"):"—";}
 
 function renderInput(){
   const store=document.getElementById("sel-store").value;
-  const emps=store?EMPS.filter(function(e){return e.store===store&&!e.is_mgr;}):[];
+  const rfEl=document.getElementById("input-rf");
+  const rf=rfEl?rfEl.value:"";
+  let emps=store?EMPS.filter(function(e){return e.store===store&&!e.is_mgr;}):[];
+  if(rf)emps=emps.filter(function(e){return e.rank37===rf;});
   const done=emps.filter(function(e){return getStatus(e.name)>=1;}).length;
   document.getElementById("prog-store").textContent=store?done+"/"+emps.length+"名":"";
   document.getElementById("prog-bar").style.width=emps.length?(done/emps.length*100)+"%":"0%";
