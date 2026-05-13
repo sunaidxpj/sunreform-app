@@ -607,7 +607,7 @@ function calcMig(emp,cR,cG){
   const rank=cR||emp.rank37, grade=cG||emp.grade37;
   const tbl=getNewTbl(emp.table37);
   const certAllow=emp.cert_allow||0;
-  // 37期 actual 月収 (= 比較ベース)
+  // 37期 actual 月収 (= 比較ベース、旧)
   const ot_actual=emp.base_pay+emp.rank_pay+45000+certAllow;
   // 暫定の旧体系役職等級手当（マスタから補正）
   var adjRankPay=emp.rank_pay;
@@ -621,16 +621,14 @@ function calcMig(emp,cR,cG){
     var partTgt=Math.ceil(ot_actual*12/drP/100000)*100000;
     return{tbl:"パート",rn:emp.rank37,rp:emp.rank_pay,ot:ot_actual,na:0,ng:emp.grade37,ngp:emp.rank_pay,nt:ot_actual,diff:0,nextTarget:partTgt};
   }
-  // 新年齢給(38期、年齢+1の場合は加齢加算込み)
+  // 新v15_2 用の数値 (④新テーブル移行 タブで使用)
   const na=getAP(getAge(emp.birth_date),tbl);
   const rn=RANK_MAP[rank]||"２級メンバー";
   const rp=RANK_PAY[rn]||10000;
-  // 38期 ot のターゲット: 新年齢給 + 暫定の旧役職等級手当 + LP + cert
-  // → 38期で 年齢給は新テーブル基準に置き換わる、役職等級は暫定値ベース
-  const ot_target=na+adjRankPay+45000+certAllow;
-  // 新等級は ot_target を維持できる最小値を新テーブルから探す
-  const fg=findGrade(ot_target-na-rp-45000-certAllow,tbl);
-  const nt=na+rp+fg.pay+45000+certAllow;
+  const ot_target_new=na+adjRankPay+45000+certAllow;
+  const fg=findGrade(ot_target_new-na-rp-45000-certAllow,tbl);
+  // 月収/年収/差/設定 は「旧 vs 旧」(年齢給は変えない、暫定変動のみ反映)
+  const nt=emp.base_pay+adjRankPay+45000+certAllow;
   const certDeduct=emp.cert_deduct||0;
   const distRate=emp.dist_rate||0.33;
   const monthRatio=emp.month_ratio||1.0;
