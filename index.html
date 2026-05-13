@@ -1492,19 +1492,26 @@ async function svMemo(empNo,name,val){
     catch(e){setSyncStatus("err","保存エラー: "+e.message);}
   },800);
 }
+const svKPending={}; // empNo → { fields:{...}, name }
 async function svK(empNo,name,lk,kk,val){
   if(!saves[name])saves[name]={};saves[name][lk]=val;
   updateImpact();
   const emp=EMPS.find(function(e){return e.name===name;});
   const newLog=appendEditLog(emp,kk,val);
+  // 同じ empNo の連続更新を保留領域に蓄積（後勝ち上書き、フィールドはマージ）
+  if(!svKPending[empNo])svKPending[empNo]={fields:{},name:name};
+  svKPending[empNo].fields[kk]={value:val};
+  svKPending[empNo].fields.name={value:name};
+  svKPending[empNo].fields.last_editor={value:editorLabel()};
+  svKPending[empNo].fields.edit_log={value:newLog};
   clearTimeout(saveTimer[empNo]);
   saveTimer[empNo]=setTimeout(async function(){
+    var p=svKPending[empNo]; if(!p) return;
+    delete svKPending[empNo];
     try{
-      const fields={};fields[kk]={value:val};fields.name={value:name};
-      fields.last_editor={value:editorLabel()};fields.edit_log={value:newLog};
-      await upsert(empNo,fields);setSyncStatus("ok","保存済み by "+editorLabel());
+      await upsert(empNo,p.fields);setSyncStatus("ok","保存済み by "+editorLabel());
     }catch(e){setSyncStatus("err","保存エラー: "+e.message);}
-  },800);
+  },100);
 }
 
 function clearMigFilters(){
