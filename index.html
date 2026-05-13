@@ -964,7 +964,17 @@ function renderEval(){
         var editBtn=" <button onclick=\"editEval('"+emp.emp_no+"')\" style=\"background:none;border:none;cursor:pointer;color:#1565C0;font-size:11px\" title=\"この評価を編集\">✏️</button>";
         var delBtn=" <button onclick=\"deleteEval('"+emp.emp_no+"','"+nameEsc+"')\" style=\"background:none;border:none;cursor:pointer;color:#C62828;font-size:11px\" title=\"この評価を削除\">🗑</button>";
         var fam=(e.familiarity==null?100:e.familiarity);
-        return "<div style=\"padding:3px 0;border-bottom:1px dashed #EEE;font-size:12px\"><b>"+e.name+"</b> <span class=\"badge "+sc+"\">"+e.score+"</span> <span style=\"color:#6A1B9A;font-size:11px\">把握"+fam+"%</span> <span style=\"color:#424242\">"+(e.comment||"(コメント無し)")+"</span> <span style=\"color:#BDBDBD;font-size:10px\">"+(e.date||"")+"</span>"+editBtn+delBtn+"</div>";
+        var commentEsc=(e.comment||"(コメント無し)").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+        return "<div style=\"padding:6px 0;border-bottom:1px dashed #EEE;font-size:12px;white-space:normal;word-break:break-word;line-height:1.55\">"
+          +"<div style=\"display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:3px\">"
+          +"<b>"+e.name+"</b>"
+          +" <span class=\"badge "+sc+"\">"+e.score+"</span>"
+          +" <span style=\"color:#6A1B9A;font-size:11px\">把握"+fam+"%</span>"
+          +" <span style=\"color:#BDBDBD;font-size:10px\">"+(e.date||"")+"</span>"
+          +editBtn+delBtn
+          +"</div>"
+          +"<div style=\"color:#424242;white-space:pre-wrap;word-break:break-word\">"+commentEsc+"</div>"
+          +"</div>";
       }).join("");
     }else{
       details="<span style=\"color:#BDBDBD;font-size:12px\">あなたは未入力 (上のフォームから入力してください)</span>";
@@ -977,7 +987,7 @@ function renderEval(){
     })():"<span style=\"color:#BDBDBD;font-size:12px\">—</span>";
     var resHtml=emp.result!=null?"<span style=\"font-family:monospace;font-size:12px\">"+yen(emp.result)+"</span>":"<span style=\"color:#BDBDBD;font-size:12px\">—</span>";
     var tgtHtml=emp.target!=null?"<span style=\"font-family:monospace;font-size:12px\">"+yen(emp.target)+"</span>":"<span style=\"color:#BDBDBD;font-size:12px\">—</span>";
-    rows+="<tr><td style=\"font-weight:700\">"+emp.name+"</td><td style=\"font-size:11px\">"+mgrTargetArea(emp)+"</td><td style=\"text-align:right\">"+tgtHtml+"</td><td style=\"text-align:right\">"+resHtml+"</td><td style=\"text-align:center\">"+achHtml+"</td><td>"+arr.length+"件</td><td style=\""+avgCls+";font-size:15px\">"+avg+"</td><td>"+details+"</td></tr>";
+    rows+="<tr><td style=\"font-weight:700\">"+emp.name+"</td><td style=\"font-size:11px\">"+mgrTargetArea(emp)+"</td><td style=\"text-align:right\">"+tgtHtml+"</td><td style=\"text-align:right\">"+resHtml+"</td><td style=\"text-align:center\">"+achHtml+"</td><td>"+arr.length+"件</td><td style=\""+avgCls+";font-size:15px\">"+avg+"</td><td style=\"white-space:normal;word-break:break-word;overflow:visible;min-width:280px\">"+details+"</td></tr>";
   });
   document.getElementById("eval-tb").innerHTML=rows;
 }
