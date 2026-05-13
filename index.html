@@ -1201,11 +1201,10 @@ function formatSalaryPreview(monthly,diff,nextTarget){
   var sign=diff>=0?"+":"";
   var yr=monthly*14, yrDiff=diff*14;
   var html='<div style="font-size:11px;line-height:1.4">'
-    +'<div>月収 <b>'+yen(monthly)+'</b></div>'
-    +'<div>年収 <b style="color:#C97A2E">'+yen(yr)+'</b> <span style="font-size:10px;color:#757575">(×14)</span></div>'
+    +'<div>月 <b>'+yen(monthly)+'</b> / 年 <b style="color:#C97A2E">'+yen(yr)+'</b></div>'
     +'<div style="color:'+dc+';font-weight:700">差 '+sign+yen(diff)+'/月 ('+sign+yen(yrDiff)+'/年)</div>';
   if(nextTarget!=null&&nextTarget>0){
-    html+='<div style="border-top:1px dashed #E0E0E0;margin-top:2px;padding-top:2px;color:#1565C0">設定 <b>'+yen(nextTarget)+'</b></div>';
+    html+='<div style="color:#1565C0">設定 <b>'+yen(nextTarget)+'</b></div>';
   }
   return html+'</div>';
 }
