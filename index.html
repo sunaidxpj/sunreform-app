@@ -139,6 +139,9 @@ tr:hover td{background:#FAFAFA}
       <div class="field" style="flex:1"><label>役職フィルタ</label>
         <select id="input-rf" onchange="renderInput()"><option value="">全役職</option></select>
       </div>
+      <div class="field" style="flex:1"><label>状態</label>
+        <select id="input-ff" onchange="renderInput()"><option value="">全員</option><option value="未確定">未確定のみ</option><option value="入力済">入力済のみ</option></select>
+      </div>
       <div class="field" style="flex:1"><label>入力進捗</label>
         <div id="prog-store" style="font-size:13px;padding-top:4px;color:#757575">—</div>
         <div class="prog-bar-wrap"><div class="prog-bar-fill" id="prog-bar" style="width:0%"></div></div>
@@ -152,7 +155,7 @@ tr:hover td{background:#FAFAFA}
     <div class="fr">
       <select id="meet-sf" onchange="renderMeet()"><option value="">全店舗</option></select>
       <select id="meet-rf" onchange="renderMeet()"><option value="">全役職</option></select>
-      <select id="meet-ff" onchange="renderMeet()"><option value="">全員</option><option value="入力済">①入力済のみ</option><option value="役職変更">役職変更あり</option></select>
+      <select id="meet-ff" onchange="renderMeet()"><option value="">全員</option><option value="未確定">未確定のみ (暫定未入力)</option><option value="入力済">①入力済のみ</option><option value="役職変更">役職変更あり</option></select>
       <button class="btn btn-sm" onclick="clearMeetFilters()" title="絞り込みをクリア">↻ クリア</button>
     </div>
   </div>
@@ -976,8 +979,12 @@ function renderInput(){
   const store=document.getElementById("sel-store").value;
   const rfEl=document.getElementById("input-rf");
   const rf=rfEl?rfEl.value:"";
+  const ffEl=document.getElementById("input-ff");
+  const ff=ffEl?ffEl.value:"";
   let emps=store?EMPS.filter(function(e){return e.store===store&&!e.is_mgr;}):[];
   if(rf)emps=emps.filter(function(e){return e.rank37===rf;});
+  if(ff==="未確定")emps=emps.filter(function(e){return getStatus(e.name)===0;});
+  if(ff==="入力済")emps=emps.filter(function(e){return getStatus(e.name)>=1;});
   const done=emps.filter(function(e){return getStatus(e.name)>=1;}).length;
   document.getElementById("prog-store").textContent=store?done+"/"+emps.length+"名":"";
   document.getElementById("prog-bar").style.width=emps.length?(done/emps.length*100)+"%":"0%";
@@ -1112,6 +1119,7 @@ function renderMeet(){
   const rf=document.getElementById("meet-rf").value;
   let emps=(sf?EMPS.filter(function(e){return e.store===sf;}):EMPS).filter(function(e){return !e.is_mgr;});
   if(rf)emps=emps.filter(function(e){return e.rank37===rf;});
+  if(ff==="未確定")emps=emps.filter(function(e){return getStatus(e.name)<2;});
   if(ff==="入力済")emps=emps.filter(function(e){return saves[e.name]&&saves[e.name].comment;});
   if(ff==="役職変更")emps=emps.filter(function(e){return autoCalc(e).roleChanged;});
   // 店舗/フィルタ集計
