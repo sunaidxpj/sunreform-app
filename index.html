@@ -1001,7 +1001,7 @@ function renderInput(){
   // 店舗別サマリー (店舗別比較の自店分)
   let summaryHtml="";
   try{
-    var b={auto_d:0,hope_d:0,auto_n:0,hope_n:0,old_m:0,ach_sum:0,ach_cnt:0,inp:0,cnt:0,retired:0};
+    var b={auto_d:0,hope_d:0,auto_n:0,hope_n:0,old_m:0,ach_sum:0,ach_cnt:0,inp:0,cnt:0,retired:0,hope_n_cnt:0};
     emps.forEach(function(emp){
       if(emp.base_pay===0&&!isPart(emp))return;
       if(isRetiring(emp)){b.retired++;return;}
@@ -1009,8 +1009,10 @@ function renderInput(){
       var s=saves[emp.name]||{};
       var ca=autoCalc(emp);
       var ad=parseDelta(ca.delta)||0;
-      var hd=parseDelta(s.hDelta);if(hd===null)hd=ad;
+      var hRaw=parseDelta(s.hDelta);
+      var hd=hRaw===null?0:hRaw;
       b.auto_d+=ad;b.hope_d+=hd;
+      if(hRaw!==null)b.hope_n_cnt++;
       var ma=calcMig(emp,ca.rank,ca.grade);
       var hR=s.hRank||ca.rank,hG=s.hGrade||ca.grade;
       var mh=calcMig(emp,hR,hG);
@@ -1030,8 +1032,8 @@ function renderInput(){
       "<div style=\"display:flex;gap:20px;flex-wrap:wrap\">"+
         "<div>人数 <b>"+b.cnt+"名</b>"+(b.retired?" <span style=\"font-size:11px;color:#757575\">(退職除外"+b.retired+")</span>":"")+"</div>"+
         "<div>平均達成率 <b>"+avgA+"</b></div>"+
-        "<div>自動提案 <b>"+(b.auto_d>=0?"+":"")+b.auto_d+"</b></div>"+
-        "<div>店長希望 <b>"+(b.hope_d>=0?"+":"")+b.hope_d+"</b></div>"+
+        "<div>自動提案 <b>"+(b.auto_d>=0?"+":"")+b.auto_d+"</b> <span style=\"font-size:11px;color:#757575\">("+b.cnt+"名)</span></div>"+
+        "<div>店長希望 <b>"+(b.hope_d>=0?"+":"")+b.hope_d+"</b> <span style=\"font-size:11px;color:#757575\">("+b.hope_n_cnt+"名)</span></div>"+
         "<div>乖離 <b style=\"color:"+gapCol+"\">"+(gap>=0?"+":"")+gap+"</b></div>"+
         "<div>37期月額 "+yen(b.old_m)+"</div>"+
         "<div>→自動 <span style=\"color:#1565C0\">"+yen(b.auto_n)+"</span></div>"+
@@ -1152,8 +1154,8 @@ function renderMeet(){
       var s=saves[emp.name]||{};
       var ca=autoCalc(emp);
       var ad=parseDelta(ca.delta)||0;
-      var hd=parseDelta(s.hDelta);if(hd===null)hd=ad;
-      var md=parseDelta(s.mDelta);if(md===null)md=hd;
+      var hRaw=parseDelta(s.hDelta);var hd=hRaw===null?0:hRaw;
+      var mRaw=parseDelta(s.mDelta);var md=mRaw===null?0:mRaw;
       b.auto_d+=ad;b.hope_d+=hd;b.meet_d+=md;
       var ma=calcMig(emp,ca.rank,ca.grade);
       var hR=s.hRank||ca.rank,hG=s.hGrade||ca.grade;
@@ -1182,9 +1184,9 @@ function renderMeet(){
       "<div style=\"display:flex;gap:18px;flex-wrap:wrap\">"+
         "<div>人数 <b>"+b.cnt+"名</b>"+(b.retired?"<span style=\"font-size:11px;color:#757575\"> (退職除外"+b.retired+")</span>":"")+"</div>"+
         "<div>平均達成率 <b>"+avgA+"</b></div>"+
-        "<div>自動 <b>"+(b.auto_d>=0?"+":"")+b.auto_d+"</b></div>"+
-        "<div>店長希望 <b>"+(b.hope_d>=0?"+":"")+b.hope_d+"</b></div>"+
-        "<div>②暫定 <b style=\"color:#E65100\">"+(b.meet_d>=0?"+":"")+b.meet_d+"</b></div>"+
+        "<div>自動 <b>"+(b.auto_d>=0?"+":"")+b.auto_d+"</b> <span style=\"font-size:11px;color:#757575\">("+b.cnt+"名)</span></div>"+
+        "<div>店長希望 <b>"+(b.hope_d>=0?"+":"")+b.hope_d+"</b> <span style=\"font-size:11px;color:#757575\">("+b.inp1+"名)</span></div>"+
+        "<div>②暫定 <b style=\"color:#E65100\">"+(b.meet_d>=0?"+":"")+b.meet_d+"</b> <span style=\"font-size:11px;color:#757575\">("+b.inp2+"名)</span></div>"+
         "<div>暫定vs自動 <b style=\"color:"+gMACol+"\">"+(gapMA>=0?"+":"")+gapMA+"</b></div>"+
         "<div>暫定vs希望 <b style=\"color:"+gMHCol+"\">"+(gapMH>=0?"+":"")+gapMH+"</b></div>"+
       "</div>"+
@@ -1365,10 +1367,13 @@ function renderFinal(){
       var s=saves[emp.name]||{};
       var ca=autoCalc(emp);
       var ad=parseDelta(ca.delta)||0;
-      var hd=parseDelta(s.hDelta);if(hd===null)hd=ad;
-      var md=parseDelta(s.mDelta);if(md===null)md=hd;
-      var fd=parseDelta(s.fDelta);if(fd===null)fd=md;
+      var hRaw=parseDelta(s.hDelta);var hd=hRaw===null?0:hRaw;
+      var mRaw=parseDelta(s.mDelta);var md=mRaw===null?0:mRaw;
+      var fRaw=parseDelta(s.fDelta);var fd=fRaw===null?0:fRaw;
       b.auto_d+=ad;b.hope_d+=hd;b.meet_d+=md;b.final_d+=fd;
+      if(hRaw!==null)b.h_cnt=(b.h_cnt||0)+1;
+      if(mRaw!==null)b.m_cnt=(b.m_cnt||0)+1;
+      if(fRaw!==null)b.f_cnt=(b.f_cnt||0)+1;
       var ma=calcMig(emp,ca.rank,ca.grade);
       var hR=s.hRank||ca.rank,hG=s.hGrade||ca.grade;var mh=calcMig(emp,hR,hG);
       var mR=s.mRank||hR,mG=s.mGrade||hG;var mm=calcMig(emp,mR,mG);
@@ -1398,10 +1403,10 @@ function renderFinal(){
       "<div style=\"display:flex;gap:18px;flex-wrap:wrap\">"+
         "<div>人数 <b>"+b.cnt+"名</b>"+(b.retired?"<span style=\"font-size:11px;color:#757575\"> (退職除外"+b.retired+")</span>":"")+"</div>"+
         "<div>平均達成率 <b>"+avgA+"</b></div>"+
-        "<div>自動 <b>"+(b.auto_d>=0?"+":"")+b.auto_d+"</b></div>"+
-        "<div>希望 <b>"+(b.hope_d>=0?"+":"")+b.hope_d+"</b></div>"+
-        "<div>②暫定 <b>"+(b.meet_d>=0?"+":"")+b.meet_d+"</b></div>"+
-        "<div>③確定 <b style=\"color:#C62828\">"+(b.final_d>=0?"+":"")+b.final_d+"</b></div>"+
+        "<div>自動 <b>"+(b.auto_d>=0?"+":"")+b.auto_d+"</b> <span style=\"font-size:11px;color:#757575\">("+b.cnt+"名)</span></div>"+
+        "<div>希望 <b>"+(b.hope_d>=0?"+":"")+b.hope_d+"</b> <span style=\"font-size:11px;color:#757575\">("+(b.h_cnt||0)+"名)</span></div>"+
+        "<div>②暫定 <b>"+(b.meet_d>=0?"+":"")+b.meet_d+"</b> <span style=\"font-size:11px;color:#757575\">("+(b.m_cnt||0)+"名)</span></div>"+
+        "<div>③確定 <b style=\"color:#C62828\">"+(b.final_d>=0?"+":"")+b.final_d+"</b> <span style=\"font-size:11px;color:#757575\">("+(b.f_cnt||0)+"名)</span></div>"+
         "<div>確定vs自動 <b style=\"color:"+fACol+"\">"+(gapFA>=0?"+":"")+gapFA+"</b></div>"+
         "<div>確定vs②暫定 <b style=\"color:"+fMCol+"\">"+(gapFM>=0?"+":"")+gapFM+"</b></div>"+
       "</div>"+
