@@ -1020,20 +1020,20 @@ function renderMgr(){
         var sc=ev.score>=4?"bg":ev.score>=3?"bb":"br";
         var fam=(ev.familiarity==null?100:ev.familiarity);
         var cmt=(ev.comment||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
-        var cmtHtml=cmt?"<div style=\"color:#424242;white-space:pre-wrap;word-break:break-word;margin-top:4px;line-height:1.45;font-size:11px\">"+cmt+"</div>":"<div style=\"color:#BDBDBD;font-size:10px;margin-top:4px\">(コメント無し)</div>";
-        return "<div style=\"flex:1 1 240px;min-width:240px;max-width:360px;background:#FFF;border:1px solid #E0E0E0;border-radius:6px;padding:8px 10px\">"
-          +"<div style=\"display:flex;gap:6px;align-items:center;flex-wrap:wrap;border-bottom:1px solid #F0F0F0;padding-bottom:4px;margin-bottom:4px\">"
+        var cmtHtml=cmt?"<div style=\"flex:1 1 auto;color:#424242;white-space:pre-wrap;word-break:break-word;line-height:1.5;font-size:12px;border-left:2px solid #E5C896;padding-left:10px\">"+cmt+"</div>":"<div style=\"flex:1 1 auto;color:#BDBDBD;font-size:11px;font-style:italic;border-left:2px solid #EEE;padding-left:10px\">(コメント無し)</div>";
+        return "<div style=\"display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;background:#FFF;border:1px solid #E0E0E0;border-radius:6px;padding:8px 12px\">"
+          +"<div style=\"flex:0 0 auto;display:flex;gap:6px;align-items:center;min-width:230px\">"
           +"<b style=\"font-size:12px\">"+ev.name+"</b>"
           +" <span class=\"badge "+sc+"\">"+ev.score+"</span>"
-          +" <span style=\"color:#6A1B9A;font-size:10px\">把握"+fam+"%</span>"
-          +" <span style=\"color:#BDBDBD;font-size:10px;margin-left:auto\">"+(ev.date||"")+"</span>"
+          +" <span style=\"color:#6A1B9A;font-size:11px\">把握"+fam+"%</span>"
+          +" <span style=\"color:#BDBDBD;font-size:10px\">"+(ev.date||"")+"</span>"
           +"</div>"
           +cmtHtml
           +"</div>";
       }).join("");
       evalDetailRow="<tr class=\"mgr-eval-detail\"><td colspan=\"13\" style=\"white-space:normal;padding:8px 14px 14px;background:linear-gradient(90deg,#FFF8E1,#FAEFDD)\">"
         +"<div style=\"font-size:11px;color:#5C3210;margin-bottom:6px\"><b>📋 "+emp.name+" の事前評価詳細</b> <span style=\"color:#757575\">(★"+evalAvg+" / "+evalArr.length+"件)</span></div>"
-        +"<div style=\"display:flex;gap:8px;flex-wrap:wrap\">"+cards+"</div>"
+        +"<div style=\"display:flex;flex-direction:column;gap:6px\">"+cards+"</div>"
         +"</td></tr>";
     }else{
       evalSum="<span style=\"font-size:10px;color:#BDBDBD\">事前評価なし</span>";
