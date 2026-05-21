@@ -39,11 +39,10 @@ label{font-size:12px;color:#757575;display:block;margin-bottom:3px}
 .bg{background:#FAEFDD;color:#7A4514}.ba{background:#FFF8E1;color:#F57F17}
 .br{background:#FFEBEE;color:#C62828}.bb{background:#E5C896;color:#1565C0}
 .bgray{background:#F5F5F5;color:#757575}.borange{background:#FFF3E0;color:#E65100}
-.tw{overflow-x:auto;overflow-y:visible}
+.tw{overflow-x:auto;overflow-y:clip}
 table{width:100%;border-collapse:collapse;font-size:12px}
-th{background:#FAFAFA;text-align:left;padding:8px 10px;font-weight:700;font-size:11px;color:#757575;border-bottom:1px solid #E0E0E0;white-space:nowrap;position:sticky;top:96px;z-index:50;box-shadow:0 1px 0 #E0E0E0}
-thead tr:first-child th{top:96px}
-thead tr:nth-child(2) th{top:124px}
+th{background:#FAFAFA;text-align:left;padding:8px 10px;font-weight:700;font-size:11px;color:#757575;border-bottom:1px solid #E0E0E0;white-space:nowrap;position:sticky;top:var(--thead-top,96px);z-index:50;box-shadow:0 1px 0 #E0E0E0}
+thead tr:nth-child(2) th{top:var(--thead-top2,124px)}
 td{padding:8px 10px;border-bottom:1px solid #F5F5F5;vertical-align:middle;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 tr:hover td{background:#FAFAFA}
 .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
@@ -717,6 +716,17 @@ function lockPerm(){
   showTab("input");
 }
 
+function updateStickyOffsets(){
+  var topbar=document.querySelector(".topbar");
+  var tabs=document.querySelector(".tabs");
+  var tbH=topbar?topbar.getBoundingClientRect().height:52;
+  var tH=tabs?tabs.getBoundingClientRect().height:42;
+  var base=Math.round(tbH+tH);
+  var row2=base+28;
+  document.documentElement.style.setProperty("--thead-top",base+"px");
+  document.documentElement.style.setProperty("--thead-top2",row2+"px");
+  if(tabs)tabs.style.top=Math.round(tbH)+"px";
+}
 function init(){
   const ss=document.getElementById("sel-store");
   STORES.forEach(function(s){ss.add(new Option(s,s));});
@@ -751,6 +761,8 @@ function init(){
     var pm=document.getElementById("tab-perm");if(pm)pm.style.display="";
   }
   updateProg();loadSettings();loadMgrSalaries();loadData();
+  updateStickyOffsets();
+  window.addEventListener("resize",updateStickyOffsets);
 }
 
 function showTab(t){
@@ -2291,12 +2303,19 @@ function checkCSVAuth(){
   else{denyAlert("csv");}
 }
 function exportCSV(){
-  const rows=[["区分","店舗","氏名","社員番号","37期役職","37期等級","達成率","自動提案","①希望変動","①希望役職","①希望等級","①コメント","②暫定変動","②暫定役職","②暫定等級","②メモ","③確定変動","③確定役職","③確定等級","③メモ","新テーブル","旧総額","新年齢給","新役職名","新役職手当","新等級","新等級手当","新総額","差額","来期利益設定","備考"]];
+  const rows=[["区分","店舗","氏名","社員番号","37期役職","37期等級","達成率","自動提案","①希望変動","①希望役職","①希望等級","①コメント","②暫定変動","②暫定役職","②暫定等級","②メモ","③確定変動","③確定役職","③確定等級","③メモ","新テーブル","旧総額","④新役職","④新役職手当","④新年齢給","④新等級","④新等級手当","④新月収","④月収差額","④年収(×14)","④来期利益設定","備考"]];
   EMPS.filter(function(e){return !e.is_mgr;}).forEach(function(emp){
     const au=autoCalc(emp),s=saves[emp.name]||{},fR=s.fRank||s.mRank||"",fG=s.fGrade||s.mGrade||"";
-    let m={tbl:"",ot:"",na:"",rn:"",rp:"",ng:"",ngp:"",nt:"",diff:""};
-    if(fR&&fG&&emp.base_pay>0){m=calcMig(emp,fR,fG);}
-    rows.push(["一般",emp.store,emp.name,emp.emp_no,emp.rank37,emp.grade37,pct(emp.achieve),au.delta,s.hDelta||"",s.hRank||"",s.hGrade||"",s.comment||"",s.mDelta||"",s.mRank||"",s.mGrade||"",s.mMemo||"",s.fDelta||"",fR,fG,s.fMemo||"",m.tbl,m.ot,m.na,m.rn,m.rp,m.ng,m.ngp,m.nt,m.diff,m.nextTarget||"",emp.memo||""]);
+    var m={tbl:"",ot:0,na:0,rn:"",rp:0,ng:"",ngp:0,nt:0,diff:0,nextTarget:0};
+    var adj=m;
+    if(fR&&fG&&emp.base_pay>0&&!isPart(emp)){
+      m=calcMig(emp,fR,fG);
+      var nRank=s.nRank||m.rn;
+      var nGrade=s.nGrade||m.ng;
+      adj=adjustedMig(emp,nRank,nGrade,m.tbl);
+      adj.rn=nRank;adj.ng=nGrade;
+    }
+    rows.push(["一般",emp.store,emp.name,emp.emp_no,emp.rank37,emp.grade37,pct(emp.achieve),au.delta,s.hDelta||"",s.hRank||"",s.hGrade||"",s.comment||"",s.mDelta||"",s.mRank||"",s.mGrade||"",s.mMemo||"",s.fDelta||"",fR,fG,s.fMemo||"",m.tbl,m.ot||"",adj.rn||"",adj.rp||"",adj.na||"",adj.ng||"",adj.ngp||"",adj.nt||"",adj.diff||"",adj.nt?(adj.nt*14):"",adj.nextTarget||"",emp.memo||""]);
   });
   // Manager rows appended
   EMPS.filter(function(e){return e.is_mgr;}).forEach(function(emp){
