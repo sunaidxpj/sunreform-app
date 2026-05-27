@@ -2275,9 +2275,10 @@ function calcImpact(){
     var cert=emp.cert_allow||0;
     om+=emp.base_pay+emp.rank_pay+45000+cert;
     nm+=m.nt+cert;
-    tgt+=m.nextTarget||0;
-    // 年間人件費 (パートは×12、一般は×14×1.2、月割考慮)
+    // 中途社員(month_ratio<1)は実設定(emp.target×month_ratio)、通常は計算値
     var mr=emp.month_ratio||1.0;
+    if(mr<1.0&&emp.target){tgt+=Math.round(emp.target*mr);}else{tgt+=m.nextTarget||0;}
+    // 年間人件費 (パートは×12、一般は×14×1.2、月割考慮)
     var cd=emp.cert_deduct||0;
     if(isPart(emp)){
       totalJinji+=(m.nt)*12*mr;
