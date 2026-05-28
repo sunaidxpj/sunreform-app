@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>38期 昇降格査定システム</title>
 <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3/lib/msal-browser.min.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif;font-size:14px;background:#F5F5F5;color:#212121}
@@ -95,7 +96,8 @@ tr:hover td{background:#FAFAFA}
     <span id="prog-txt" style="font-size:12px;color:#757575"></span>
     <button class="btn btn-sm" onclick="loadData()">↻ 同期</button>
     <button class="btn btn-sm" onclick="showTab(&#34;admin&#34;)">全社一覧</button>
-    <button class="btn btn-sm btn-p" onclick="checkCSVAuth()">CSV出力</button>
+    <button class="btn btn-sm btn-p" onclick="checkExcelAuth()">Excel出力</button>
+    <button class="btn btn-sm" onclick="checkCSVAuth()">CSV出力</button>
     <button class="btn btn-sm" onclick="logoutMS()" title="サインアウト">🚪</button>
   </div>
 </div>
@@ -2511,6 +2513,127 @@ function updateImpact(){
       bd.style.display=bd.innerHTML?'flex':'none';
     }
   }catch(e){console.warn("updateImpact:",e);}
+}
+
+function checkExcelAuth(){
+  if(canAccess("csv")){triggerExcelExport();}
+  else{denyAlert("csv");}
+}
+function triggerExcelExport(){
+  if(typeof XLSX==='undefined'){alert('SheetJSが読み込まれていません。ページを再読込してください。');return;}
+  var input=document.createElement('input');
+  input.type='file';input.accept='.xlsx,.xls';
+  input.onchange=function(ev){
+    var file=ev.target.files[0];if(!file)return;
+    var reader=new FileReader();
+    reader.onload=function(e){
+      try{exportExcelFromTemplate(new Uint8Array(e.target.result));}
+      catch(err){console.error(err);alert('Excel出力エラー: '+err.message);}
+    };
+    reader.readAsArrayBuffer(file);
+  };
+  input.click();
+}
+function exportExcelFromTemplate(data){
+  var wb=XLSX.read(data,{type:'array',cellStyles:true,cellNF:true});
+  var sheetName=wb.SheetNames.find(function(n){return n.indexOf('査定表')>=0;})||wb.SheetNames[0];
+  var ws=wb.Sheets[sheetName];
+  if(!ws)throw new Error('シートが見つかりません');
+  var range=XLSX.utils.decode_range(ws['!ref']);
+  function getV(r,c){var addr=XLSX.utils.encode_cell({r:r,c:c});var cell=ws[addr];return(cell&&cell.v!=null)?cell.v:null;}
+  function setN(r,c,val){var addr=XLSX.utils.encode_cell({r:r,c:c});var ex=ws[addr]||{};ws[addr]=Object.assign({},ex,{v:Number(val)||0,t:'n'});delete ws[addr].f;}
+  function setS(r,c,val){var addr=XLSX.utils.encode_cell({r:r,c:c});var ex=ws[addr]||{};ws[addr]=Object.assign({},ex,{v:String(val),t:'s'});delete ws[addr].f;}
+  // emp name → EMPS entry
+  var empMap={};
+  EMPS.forEach(function(emp){empMap[String(emp.name||'').replace(/[\s　]/g,'')]=emp;});
+  var updated=0,skipped=0;
+  for(var ri=2;ri<=range.e.r;ri++){
+    var rawName=getV(ri,2);
+    if(rawName==null||rawName==='')continue;
+    var emp=empMap[String(rawName).replace(/[\s　]/g,'')];
+    if(!emp){skipped++;continue;}
+    var s=saves[emp.name]||{};
+    var au=autoCalc(emp);
+    var eR=s.fRank||s.mRank||s.hRank||au.rank||emp.rank37;
+    var eG=s.fGrade||s.mGrade||s.hGrade||au.grade||emp.grade37;
+    var age38=getAge(emp.birth_date)||(((getV(ri,3)||0)+1));
+    var sal37=getV(ri,11)||0;  // col12: 37期手当含
+    var col30val=getV(ri,29)||0;  // col30: 38期手当 (preserved)
+    // マネージャー: 年齢のみ
+    if(isMgr(emp)){setN(ri,21,age38);updated++;continue;}
+    var certDeduct=emp.cert_deduct||0;
+    var distRate=emp.dist_rate||0.33;
+    var monthRatio=emp.month_ratio||1.0;
+    // パート
+    if(isPart(emp)){
+      setN(ri,21,age38);
+      setS(ri,23,eR||emp.rank37);
+      setS(ri,24,eG||emp.grade37);
+      updated++;continue;
+    }
+    // HD/SSC正社員 (base_pay===0)
+    if(emp.base_pay===0){
+      var rp37=lookupOldRankPay(emp.table37,emp.rank37,emp.grade37)||0;
+      var rp38=lookupOldRankPay(emp.table37,eR||emp.rank37,eG||emp.grade37)||rp37;
+      var agePay37=emp.age_pay||0;
+      var agePay38=lookupOldAgePay(emp.table37,getAge(emp.birth_date))||agePay37;
+      var certAllow=emp.cert_allow||0;
+      var otherAllow=emp.other_allow||0;
+      var col31hd=agePay38+rp38+certAllow+otherAllow;
+      var jinjihd=(col31hd-certDeduct)*14*1.2*monthRatio;
+      var nextTgthd=Math.ceil(jinjihd/distRate/100000)*100000;
+      setN(ri,21,age38);
+      setS(ri,22,emp.table37||'');
+      setS(ri,23,eR||emp.rank37);
+      setS(ri,24,eG||emp.grade37);
+      setN(ri,25,agePay38);
+      setN(ri,26,rp38);
+      setN(ri,27,0);
+      setN(ri,28,agePay38+rp38);
+      // ri,29 (col30) preserved
+      setN(ri,30,col31hd);
+      setN(ri,31,col31hd*14);
+      setN(ri,32,certDeduct);
+      setN(ri,33,jinjihd);
+      setN(ri,34,nextTgthd);
+      setN(ri,35,(col31hd-sal37)*14);
+      setN(ri,36,col31hd-sal37);
+      updated++;continue;
+    }
+    // 一般社員
+    var certAllow=emp.cert_allow||0;
+    var newAgePay=lookupOldAgePay(emp.table37,getAge(emp.birth_date))||emp.base_pay;
+    var adjRankPay=emp.rank_pay;
+    var baseMaster=lookupOldRankPay(emp.table37,emp.rank37,emp.grade37);
+    var sugMaster=(eR&&eG)?lookupOldRankPay(emp.table37,eR,eG):null;
+    if(baseMaster!=null&&sugMaster!=null){adjRankPay=emp.rank_pay+(sugMaster-baseMaster);}
+    var col29=newAgePay+adjRankPay+45000;
+    var col31=col29+col30val;
+    var jinji=(col31-certDeduct)*14*1.2*monthRatio;
+    var nextTgt=Math.ceil(jinji/distRate/100000)*100000;
+    setN(ri,21,age38);
+    setS(ri,22,emp.table37||'');
+    setS(ri,23,eR||emp.rank37);
+    setS(ri,24,eG||emp.grade37);
+    setN(ri,25,newAgePay);
+    setN(ri,26,adjRankPay);
+    setN(ri,27,45000);
+    setN(ri,28,col29);
+    // ri,29 (col30) preserved
+    setN(ri,30,col31);
+    setN(ri,31,col31*14);
+    setN(ri,32,certDeduct);
+    setN(ri,33,jinji);
+    setN(ri,34,nextTgt);
+    setN(ri,35,(col31-sal37)*14);
+    setN(ri,36,col31-sal37);
+    updated++;
+  }
+  var outBuf=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+  var blob=new Blob([outBuf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='38期昇降格査定_更新.xlsx';a.click();
+  setTimeout(function(){URL.revokeObjectURL(a.href);},60000);
+  alert('Excel出力完了 ✓\n更新: '+updated+'名  スキップ(小計行等): '+skipped+'行');
 }
 
 function checkCSVAuth(){
