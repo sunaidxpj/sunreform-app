@@ -18,6 +18,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif;fo
 .tab.locked{color:#BDBDBD}
 .tab.unlocked{color:#1565C0}
 .tab.unlocked.on{color:#1565C0;border-bottom-color:#1565C0}
+.cmp-btn{padding:3px 12px;font-size:12px;border:1px solid var(--primary,#C97A2E);border-radius:999px;background:#fff;color:var(--primary,#C97A2E);cursor:pointer;white-space:nowrap;font-weight:500}
+.cmp-btn:hover{background:var(--primary-faint,#FAEFDD)}
+.cmp-active{background:var(--primary,#C97A2E);color:#fff}
 .content{padding:16px 20px;max-width:1700px;margin:0 auto}
 .card{background:#fff;border:1px solid #E0E0E0;border-radius:8px;padding:14px 18px;margin-bottom:12px}
 .ct{font-size:13px;font-weight:700;margin-bottom:10px}
@@ -95,6 +98,13 @@ tr:hover td{background:#FAFAFA}
     <button class="btn btn-sm btn-p" onclick="checkCSVAuth()">CSV出力</button>
     <button class="btn btn-sm" onclick="logoutMS()" title="サインアウト">🚪</button>
   </div>
+</div>
+<div id="company-switcher" style="display:flex;gap:4px;align-items:center;padding:6px 20px;background:#FAFAFA;border-bottom:1px solid #EEEEEE">
+  <span style="font-size:11px;color:#9E9E9E;margin-right:4px">会社切替:</span>
+  <button class="cmp-btn cmp-active" data-company="all" onclick="setCompany('all')">全社</button>
+  <button class="cmp-btn" data-company="sun" onclick="setCompany('sun')">サンリフォーム</button>
+  <button class="cmp-btn" data-company="hd" onclick="setCompany('hd')">HD</button>
+  <button class="cmp-btn" data-company="ssc" onclick="setCompany('ssc')">SSC</button>
 </div>
 <div class="sync-bar" style="margin:12px 20px 0">
   <div style="display:flex;align-items:center">
@@ -396,7 +406,11 @@ tr:hover td{background:#FAFAFA}
         <div style="font-size:11px;color:#757575;margin-bottom:4px">空欄=管理者のみ。ここに追加したメールは本社(HD)社員の査定を閲覧・編集できます。</div>
         <textarea id="perm-hd" style="width:100%;padding:6px;min-height:100px;font-family:monospace;font-size:12px" placeholder="hd_manager@sunhd.jp"></textarea>
       </div>
-      <div class="field" style="flex:1"></div>
+      <div class="field" style="flex:1">
+        <label>👁 SSC社員閲覧許可（サービスサポートセンター）</label>
+        <div style="font-size:11px;color:#757575;margin-bottom:4px">空欄=管理者のみ。ここに追加したメールは本社(SSC)社員の査定を閲覧・編集できます。</div>
+        <textarea id="perm-ssc" style="width:100%;padding:6px;min-height:100px;font-family:monospace;font-size:12px" placeholder="ssc_manager@sunreform.jp"></textarea>
+      </div>
     </div>
     <div style="display:flex;gap:8px;align-items:center;margin-top:10px">
       <button class="btn btn-p" onclick="savePerm()">保存</button>
@@ -580,6 +594,7 @@ function isExcluded(emp){
 }
 function autoCalc(emp){
   if(isExcluded(emp))return{delta:"対象外",rank:emp.rank37,grade:emp.grade37.includes("号")?emp.grade37:emp.grade37+"号",roleChanged:false};
+  if(isNoAchieveEmp(emp))return{delta:"保留",rank:emp.rank37,grade:emp.grade37.includes("号")?emp.grade37:emp.grade37+"号",roleChanged:false};
   const d=aToDelta(emp.achieve);
   if(d==null||isRetiring(emp))return{delta:"保留",rank:emp.rank37,grade:emp.grade37.includes("号")?emp.grade37:emp.grade37+"号",roleChanged:false};
   const idx=lIdx(emp.rank37,emp.grade37);
@@ -737,11 +752,7 @@ function updateStickyOffsets(){
   });
 }
 function init(){
-  const ss=document.getElementById("sel-store");
-  STORES.forEach(function(s){if(canSeeHD()||s!=="本社(HD)")ss.add(new Option(s,s));});
-  ["meet-sf","final-sf","mig-sf"].forEach(function(id){
-    const el=document.getElementById(id);STORES.forEach(function(s){if(canSeeHD()||s!=="本社(HD)")el.add(new Option(s,s));});
-  });
+  updateCompanyStoreOptions();
   // ①入力/②会議/④移行タブの役職フィルタを EMPS から populate（is_mgr 除外）
   (function(){
     var ranks={};
@@ -806,6 +817,7 @@ function renderStore(){
   var byStore={};
   EMPS.forEach(function(emp){
     if(isMgr(emp))return;
+    if(!canSeeEmp(emp))return;
     if(emp.base_pay===0&&!isPart(emp))return;
     if(!byStore[emp.store])byStore[emp.store]={emps:[],auto_d:0,hope_d:0,auto_n:0,hope_n:0,old_m:0,ach_sum:0,ach_cnt:0,inp:0,retired:0};
     var b=byStore[emp.store];
@@ -1143,7 +1155,7 @@ function renderInput(){
   const rf=rfEl?rfEl.value:"";
   const ffEl=document.getElementById("input-ff");
   const ff=ffEl?ffEl.value:"";
-  let emps=(store?EMPS.filter(function(e){return e.store===store&&!e.is_mgr;}):[]).filter(function(e){return canSeeHD()||!isHdEmp(e);});
+  let emps=(store?EMPS.filter(function(e){return e.store===store&&!e.is_mgr;}):[]).filter(function(e){return canSeeEmp(e);});
   if(rf)emps=emps.filter(function(e){return e.rank37===rf;});
   const tfEl=document.getElementById("input-tf");const tf=tfEl?tfEl.value:"";
   if(tf)emps=emps.filter(function(e){return e.table37===tf;});
@@ -1203,7 +1215,7 @@ function renderInput(){
   let h=summaryHtml+"<div class=\"card\" style=\"padding:0\"><div class=\"tw\"><table><thead><tr><th style=\"width:90px\">氏名</th><th style=\"width:70px\">役職</th><th style=\"width:75px\">37期等級</th><th style=\"width:95px\">完工利益<br>結果</th><th style=\"width:95px\">完工利益<br>設定</th><th style=\"width:65px\">達成率</th><th style=\"width:95px\">自動提案変動</th><th style=\"width:110px\">自動提案結果</th><th style=\"width:160px\">備考</th><th style=\"width:115px\">上長コメント</th><th style=\"width:210px\">月収 / 年収 / 差異</th><th style=\"width:80px\">状態</th></tr></thead><tbody>";
   emps.forEach(function(emp){
     const au=autoCalc(emp),s=saves[emp.name]||{},st=getStatus(emp.name);
-    const ab=((emp.achieve==null||isRetiring(emp))?"<span class=\"badge bgray\">対象外</span>":emp.achieve>=1?"<span class=\"badge bg\">"+pct(emp.achieve)+"</span>":emp.achieve>=0.9?"<span class=\"badge bb\">"+pct(emp.achieve)+"</span>":emp.achieve>=0.7?"<span class=\"badge ba\">"+pct(emp.achieve)+"</span>":"<span class=\"badge br\">"+pct(emp.achieve)+"</span>")+((( emp.month_ratio||1)<1&&emp.target)?"<div style='margin-top:2px;white-space:normal'>"+fmtActualTgt(emp)+"</div>":"");
+    const ab=((emp.achieve==null||isRetiring(emp)||isNoAchieveEmp(emp))?"<span class=\"badge bgray\">対象外</span>":emp.achieve>=1?"<span class=\"badge bg\">"+pct(emp.achieve)+"</span>":emp.achieve>=0.9?"<span class=\"badge bb\">"+pct(emp.achieve)+"</span>":emp.achieve>=0.7?"<span class=\"badge ba\">"+pct(emp.achieve)+"</span>":"<span class=\"badge br\">"+pct(emp.achieve)+"</span>")+((( emp.month_ratio||1)<1&&emp.target)?"<div style='margin-top:2px;white-space:normal'>"+fmtActualTgt(emp)+"</div>":"");
     const acCls=(au.delta.length>0&&au.delta[0]==="+")?"bg":(au.delta==="保留"||au.delta==="対象外")?"bb":"br";
     const ac=au.roleChanged?"<span class=\"badge borange\">"+au.delta+"</span>":"<span class=\"badge "+acCls+"\">"+au.delta+"</span>";
     const ar=au.roleChanged?"<span style=\"font-size:11px;background:#FFF3E0;color:#E65100;padding:2px 5px;border-radius:4px\">★"+au.rank+" "+au.grade+"</span>":"<span style=\"font-size:12px\">"+au.rank+" "+au.grade+"</span>";
@@ -1221,7 +1233,7 @@ function openM(name){
   curEmp=name;const emp=EMPS.find(function(e){return e.name===name;});const au=autoCalc(emp);const s=saves[name]||{};
   document.getElementById("m-name").textContent=emp.name;
   document.getElementById("m-sub").textContent=emp.store+" / "+emp.table37+" / "+emp.rank37+" "+emp.grade37;
-  document.getElementById("m-info").innerHTML="<div class=\"ir\"><div class=\"ik\">完工利益 結果</div><div class=\"iv\">"+yen(emp.result)+"</div></div><div class=\"ir\"><div class=\"ik\">完工利益 設定</div><div class=\"iv\">"+fmtActualTgt(emp)+"</div></div><div class=\"ir\"><div class=\"ik\">達成率</div><div class=\"iv\">"+pct(emp.achieve)+"</div></div>";
+  document.getElementById("m-info").innerHTML="<div class=\"ir\"><div class=\"ik\">完工利益 結果</div><div class=\"iv\">"+yen(emp.result)+"</div></div><div class=\"ir\"><div class=\"ik\">完工利益 設定</div><div class=\"iv\">"+fmtActualTgt(emp)+"</div></div><div class=\"ir\"><div class=\"ik\">達成率</div><div class=\"iv\">"+(isNoAchieveEmp(emp)?"—":pct(emp.achieve))+"</div></div>";
   document.getElementById("m-auto").innerHTML="<div class=\"abox\"><div class=\"al\">達成率基準による自動提案</div><div class=\"av\">"+au.delta+"　→　"+au.rank+" "+au.grade+"</div></div>"+(au.roleChanged?"<div class=\"obox\">★役職変更："+emp.rank37+" → "+au.rank+"</div>":"");
   document.getElementById("m-memo").innerHTML=emp.memo?"<div class=\"mbox\">"+emp.memo+"</div>":"";
   const ds=["保留","+9","+8","+7","+6","+5","+4","+3","+2","+1","0","-1","-2","-3","-4","-5","対象外"];
@@ -1299,7 +1311,7 @@ function renderMeet(){
   const sf=document.getElementById("meet-sf").value,ff=document.getElementById("meet-ff").value;
   const rf=document.getElementById("meet-rf").value;
   const tfEl=document.getElementById("meet-tf");const tf=tfEl?tfEl.value:"";
-  let emps=(sf?EMPS.filter(function(e){return e.store===sf;}):EMPS).filter(function(e){return !e.is_mgr;});
+  let emps=(sf?EMPS.filter(function(e){return e.store===sf;}):EMPS).filter(function(e){return !e.is_mgr&&canSeeEmp(e);});
   if(rf)emps=emps.filter(function(e){return e.rank37===rf;});
   if(tf)emps=emps.filter(function(e){return e.table37===tf;});
   if(ff==="未確定")emps=emps.filter(function(e){return getStatus(e.name)<2;});
@@ -1389,7 +1401,7 @@ function renderMeet(){
     }else{
       rgCell='<div style="display:flex;gap:3px"><select onchange="onMeetRankChange(this,\''+emp.emp_no+'\',\''+emp.name+'\')" style="font-size:11px;padding:3px;flex:1'+selBg+'" class="meet-rank-sel">'+rOpts+'</select><select onchange="onMeetGradeChange(this,\''+emp.emp_no+'\',\''+emp.name+'\')" style="font-size:11px;padding:3px;flex:1'+selBg+'" class="meet-grade-sel">'+gOpts+'</select></div>';
     }
-    return "<tr><td style=\"font-weight:700\">"+emp.name+(partFlag?" <span class=\"badge bgray\" style=\"font-size:9px\">パート</span>":"")+"</td><td style=\"font-size:11px\">"+emp.store+"</td><td style=\"font-size:11px\">"+emp.rank37+" "+emp.grade37+"</td><td style=\"white-space:normal;line-height:1.4\">"+pct(emp.achieve)+(((emp.month_ratio||1)<1&&emp.target)?"<div style='margin-top:2px'>"+fmtActualTgt(emp)+"</div>":"")+"</td><td style=\"font-size:11px\">"+au.delta+" "+au.rank+" "+au.grade+(au.roleChanged?" <span class=\"badge borange\">★</span>":"")+"</td><td style=\"font-size:11px"+(s.comment?";cursor:help;text-decoration:underline dotted;text-decoration-color:#90CAF9":"")+"\" title=\""+hopeTip+"\">"+hs+"</td><td><input type=\"text\" value=\""+(emp.memo||"").replace(/\"/g,'&quot;')+"\" onchange=\"svMemo('"+emp.emp_no+"','"+emp.name+"',this.value)\" style=\"font-size:11px;padding:3px;width:100%;color:#E65100\" placeholder=\"備考\"></td><td style=\"text-align:center\"><span class=\"meet-delta-cell\" style=\"font-weight:700;font-size:13px;color:"+mDeltaColor+"\">"+mDeltaAuto+"</span></td><td>"+rgCell+"<input type=\"text\" value=\""+(s.mMemo||"").replace(/\"/g,'&quot;')+"\" onchange=\"svK('"+emp.emp_no+"','"+emp.name+"','mMemo','meet_memo',this.value)\" style=\"font-size:11px;padding:3px;width:100%;margin-top:4px;background:#FFF9C4;border-color:#E5C896\" placeholder=\"会議メモ\"></td><td class=\"meet-preview\">"+previewHtml+"</td><td>"+statusCell+"</td></tr>";
+    return "<tr><td style=\"font-weight:700\">"+emp.name+(partFlag?" <span class=\"badge bgray\" style=\"font-size:9px\">パート</span>":"")+"</td><td style=\"font-size:11px\">"+emp.store+"</td><td style=\"font-size:11px\">"+emp.rank37+" "+emp.grade37+"</td><td style=\"white-space:normal;line-height:1.4\">"+(isNoAchieveEmp(emp)?"—":pct(emp.achieve))+(((emp.month_ratio||1)<1&&emp.target)?"<div style='margin-top:2px'>"+fmtActualTgt(emp)+"</div>":"")+"</td><td style=\"font-size:11px\">"+au.delta+" "+au.rank+" "+au.grade+(au.roleChanged?" <span class=\"badge borange\">★</span>":"")+"</td><td style=\"font-size:11px"+(s.comment?";cursor:help;text-decoration:underline dotted;text-decoration-color:#90CAF9":"")+"\" title=\""+hopeTip+"\">"+hs+"</td><td><input type=\"text\" value=\""+(emp.memo||"").replace(/\"/g,'&quot;')+"\" onchange=\"svMemo('"+emp.emp_no+"','"+emp.name+"',this.value)\" style=\"font-size:11px;padding:3px;width:100%;color:#E65100\" placeholder=\"備考\"></td><td style=\"text-align:center\"><span class=\"meet-delta-cell\" style=\"font-weight:700;font-size:13px;color:"+mDeltaColor+"\">"+mDeltaAuto+"</span></td><td>"+rgCell+"<input type=\"text\" value=\""+(s.mMemo||"").replace(/\"/g,'&quot;')+"\" onchange=\"svK('"+emp.emp_no+"','"+emp.name+"','mMemo','meet_memo',this.value)\" style=\"font-size:11px;padding:3px;width:100%;margin-top:4px;background:#FFF9C4;border-color:#E5C896\" placeholder=\"会議メモ\"></td><td class=\"meet-preview\">"+previewHtml+"</td><td>"+statusCell+"</td></tr>";
   }).join("");
 }
 function approveMeetFromHope(empNo,name){
@@ -1528,7 +1540,7 @@ function renderFinal(){
   const rfEl=document.getElementById("final-rf");const rf=rfEl?rfEl.value:"";
   const ffEl=document.getElementById("final-ff");const ff=ffEl?ffEl.value:"";
   const tfEl=document.getElementById("final-tf");const tf=tfEl?tfEl.value:"";
-  let emps=(sf?EMPS.filter(function(e){return e.store===sf;}):EMPS).filter(function(e){return !e.is_mgr&&(canSeeHD()||!isHdEmp(e));});
+  let emps=(sf?EMPS.filter(function(e){return e.store===sf;}):EMPS).filter(function(e){return !e.is_mgr&&canSeeEmp(e);});
   if(rf)emps=emps.filter(function(e){return e.rank37===rf;});
   if(tf)emps=emps.filter(function(e){return e.table37===tf;});
   if(ff==="未確定")emps=emps.filter(function(e){return getStatus(e.name)<3;});
@@ -1622,7 +1634,7 @@ function renderFinal(){
     if((fSt>=1||s.mRank||s.hRank)&&fSt<3){
       fStatusCell+='<br><button class="btn btn-sm" onclick="approveFinalFromMeet(\''+emp.emp_no+'\',\''+emp.name+'\')" style="font-size:10px;padding:2px 6px;margin-top:3px;background:#FFEBEE;border-color:#C62828;color:#C62828" title="現状の確定値（未入力分は ②暫定 → ①希望 で fallback）で確定">✓ 確定</button>';
     }
-    return "<tr><td style=\"font-weight:700\">"+emp.name+(partFlag?" <span class=\"badge bgray\" style=\"font-size:9px\">パート</span>":"")+"</td><td style=\"font-size:11px\">"+emp.store+"</td><td style=\"font-size:11px\">"+emp.rank37+" "+emp.grade37+"</td><td style=\"white-space:normal;line-height:1.4\">"+pct(emp.achieve)+(((emp.month_ratio||1)<1&&emp.target)?"<div style='margin-top:2px'>"+fmtActualTgt(emp)+"</div>":"")+"</td><td style=\"font-size:11px\">"+ms+"</td><td><input type=\"text\" value=\""+(emp.memo||"").replace(/\"/g,'&quot;')+"\" onchange=\"svMemo('"+emp.emp_no+"','"+emp.name+"',this.value)\" style=\"font-size:11px;padding:3px;width:100%;color:#E65100\" placeholder=\"備考\"></td><td><input type=\"text\" class=\"final-delta-input\" value=\""+(s.fDelta||s.mDelta||"")+"\" onchange=\"svK('"+emp.emp_no+"','"+emp.name+"','fDelta','final_delta',this.value)\" style=\"width:52px;font-size:12px;padding:3px 6px\"></td><td>"+rCell+"</td><td>"+gCell+"</td><td class=\"final-conf-cell\" style=\"font-weight:700;color:#C97A2E;font-size:12px\">"+conf+"</td><td><input type=\"text\" value=\""+(s.fMemo||"")+"\" onchange=\"svK('"+emp.emp_no+"','"+emp.name+"','fMemo','final_memo',this.value)\" style=\"font-size:11px;padding:3px\" placeholder=\"メモ\"></td><td class=\"final-preview\">"+fPreview+"</td><td>"+fStatusCell+"</td></tr>";
+    return "<tr><td style=\"font-weight:700\">"+emp.name+(partFlag?" <span class=\"badge bgray\" style=\"font-size:9px\">パート</span>":"")+"</td><td style=\"font-size:11px\">"+emp.store+"</td><td style=\"font-size:11px\">"+emp.rank37+" "+emp.grade37+"</td><td style=\"white-space:normal;line-height:1.4\">"+(isNoAchieveEmp(emp)?"—":pct(emp.achieve))+(((emp.month_ratio||1)<1&&emp.target)?"<div style='margin-top:2px'>"+fmtActualTgt(emp)+"</div>":"")+"</td><td style=\"font-size:11px\">"+ms+"</td><td><input type=\"text\" value=\""+(emp.memo||"").replace(/\"/g,'&quot;')+"\" onchange=\"svMemo('"+emp.emp_no+"','"+emp.name+"',this.value)\" style=\"font-size:11px;padding:3px;width:100%;color:#E65100\" placeholder=\"備考\"></td><td><input type=\"text\" class=\"final-delta-input\" value=\""+(s.fDelta||s.mDelta||"")+"\" onchange=\"svK('"+emp.emp_no+"','"+emp.name+"','fDelta','final_delta',this.value)\" style=\"width:52px;font-size:12px;padding:3px 6px\"></td><td>"+rCell+"</td><td>"+gCell+"</td><td class=\"final-conf-cell\" style=\"font-weight:700;color:#C97A2E;font-size:12px\">"+conf+"</td><td><input type=\"text\" value=\""+(s.fMemo||"")+"\" onchange=\"svK('"+emp.emp_no+"','"+emp.name+"','fMemo','final_memo',this.value)\" style=\"font-size:11px;padding:3px\" placeholder=\"メモ\"></td><td class=\"final-preview\">"+fPreview+"</td><td>"+fStatusCell+"</td></tr>";
   }).join("");
 }
 function onFinalRankChange(sel,empNo,name){
@@ -1677,7 +1689,7 @@ function calcPreview(empName, rank, grade){
   return "<div style=\"font-size:11px;color:#0D47A1;margin-top:2px\">→"+m.tbl+" "+m.ng+" 新総額:"+yen(m.nt)+" <span class=\"badge "+dc+"\">"+( m.diff>=0?"+":"")+yen(m.diff)+"</span>"+ntStr+"</div>";
 }
 const saveTimer={};
-const APP_CONFIG={acl:{final:[],mgr:[],eval:[],csv:[],table:[],hd:[]}};
+const APP_CONFIG={acl:{final:[],mgr:[],eval:[],csv:[],table:[],hd:[],ssc:[]}};
 function curEmail(){return currentUser?(currentUser.username||"").toLowerCase():"";}
 function canAccess(area){
   if(isAdmin())return true;
@@ -1688,6 +1700,50 @@ function canAccess(area){
 }
 function canSeeHD(){return isAdmin()||canAccess("hd");}
 function isHdEmp(e){return !!(e&&e.memo==="HD");}
+function canSeeSSC(){return isAdmin()||canAccess("ssc");}
+function isSscEmp(e){return !!(e&&e.memo==="SSC");}
+function isNoAchieveEmp(e){return isHdEmp(e)||isSscEmp(e);}
+function canSeeEmp(e){
+  if(isHdEmp(e)&&!canSeeHD())return false;
+  if(isSscEmp(e)&&!canSeeSSC())return false;
+  if(currentCompanyFilter==="sun")return !isHdEmp(e)&&!isSscEmp(e);
+  if(currentCompanyFilter==="hd")return isHdEmp(e);
+  if(currentCompanyFilter==="ssc")return isSscEmp(e);
+  return true;
+}
+var currentCompanyFilter="all";
+function setCompany(c){
+  currentCompanyFilter=c;
+  document.querySelectorAll(".cmp-btn").forEach(function(b){b.classList.toggle("cmp-active",b.dataset.company===c);});
+  updateCompanyStoreOptions();
+  reRenderCurrent();
+}
+function reRenderCurrent(){
+  var tabs=["input","meet","final","migrate","newtable","ref37","store","mgr","eval","audit","perm","admin"];
+  var active=tabs.find(function(t){var el=document.getElementById("v-"+t);return el&&el.style.display!=="none";});
+  if(active==="meet")renderMeet();
+  else if(active==="final")renderFinal();
+  else if(active==="admin"){renderAdmMetrics();renderAdm();}
+  else if(active==="store")renderStore();
+  else renderInput();
+}
+function updateCompanyStoreOptions(){
+  ["sel-store","meet-sf","final-sf","mig-sf"].forEach(function(id){
+    var el=document.getElementById(id);if(!el)return;
+    var prev=el.value;
+    el.innerHTML="<option value=''>全店</option>";
+    STORES.forEach(function(s){
+      var isHdS=(s==="本社(HD)");var isSscS=(s==="本社(SSC)");
+      if(isHdS&&!canSeeHD())return;
+      if(isSscS&&!canSeeSSC())return;
+      if(currentCompanyFilter==="sun"&&(isHdS||isSscS))return;
+      if(currentCompanyFilter==="hd"&&!isHdS)return;
+      if(currentCompanyFilter==="ssc"&&!isSscS)return;
+      el.add(new Option(s,s));
+    });
+    if(Array.from(el.options).some(function(o){return o.value===prev;}))el.value=prev;
+  });
+}
 
 const SETTINGS_EMP_NO="9999";
 const MGR_SAL_EMP_NO="9998";
@@ -1710,7 +1766,7 @@ async function loadSettings(){
   // 1. localStorage から即反映
   try{
     var ls=localStorage.getItem("app_acl");
-    if(ls){var p=JSON.parse(ls);APP_CONFIG.acl.final=p.final||[];APP_CONFIG.acl.mgr=p.mgr||[];APP_CONFIG.acl.eval=p.eval||[];APP_CONFIG.acl.csv=p.csv||[];APP_CONFIG.acl.table=p.table||[];APP_CONFIG.acl.hd=p.hd||[];}
+    if(ls){var p=JSON.parse(ls);APP_CONFIG.acl.final=p.final||[];APP_CONFIG.acl.mgr=p.mgr||[];APP_CONFIG.acl.eval=p.eval||[];APP_CONFIG.acl.csv=p.csv||[];APP_CONFIG.acl.table=p.table||[];APP_CONFIG.acl.hd=p.hd||[];APP_CONFIG.acl.ssc=p.ssc||[];}
   }catch(e){}
   // 2. Kintone から上書き (あれば)
   try{
@@ -1726,7 +1782,8 @@ async function loadSettings(){
           APP_CONFIG.acl.csv=parsed.csv||APP_CONFIG.acl.csv;
           APP_CONFIG.acl.table=parsed.table||APP_CONFIG.acl.table;
           APP_CONFIG.acl.hd=parsed.hd||APP_CONFIG.acl.hd;
-          updateHdStoreOptions();
+          APP_CONFIG.acl.ssc=parsed.ssc||APP_CONFIG.acl.ssc;
+          updateCompanyStoreOptions();
           localStorage.setItem("app_acl",m);
         }catch(e){console.warn("settings parse:",e);}
       }
@@ -1761,6 +1818,7 @@ function renderPerm(){
   document.getElementById("perm-csv").value=APP_CONFIG.acl.csv.join("\n");
   document.getElementById("perm-table").value=(APP_CONFIG.acl.table||[]).join("\n");
   document.getElementById("perm-hd").value=(APP_CONFIG.acl.hd||[]).join("\n");
+  document.getElementById("perm-ssc").value=(APP_CONFIG.acl.ssc||[]).join("\n");
   document.getElementById("perm-current").textContent="あなた: "+curEmail()+" (管理者: "+(isAdmin()?"はい":"いいえ")+")";
 }
 async function savePerm(){
@@ -1770,7 +1828,8 @@ async function savePerm(){
   APP_CONFIG.acl.csv=parseEmails(document.getElementById("perm-csv").value);
   APP_CONFIG.acl.table=parseEmails(document.getElementById("perm-table").value);
   APP_CONFIG.acl.hd=parseEmails(document.getElementById("perm-hd").value);
-  updateHdStoreOptions();
+  APP_CONFIG.acl.ssc=parseEmails(document.getElementById("perm-ssc").value);
+  updateCompanyStoreOptions();
   var json=JSON.stringify(APP_CONFIG.acl);
   // localStorageには必ず保存
   try{localStorage.setItem("app_acl",json);}catch(e){}
@@ -1871,7 +1930,7 @@ function renderMigrate(){
   const sf=document.getElementById("mig-sf").value,ff=document.getElementById("mig-ff").value;
   const rf=document.getElementById("mig-rf").value;
   const tfEl=document.getElementById("mig-tf");const tf=tfEl?tfEl.value:"";
-  let emps=(sf?EMPS.filter(function(e){return e.store===sf;}):EMPS).filter(function(e){return !e.is_mgr&&(canSeeHD()||!isHdEmp(e));});
+  let emps=(sf?EMPS.filter(function(e){return e.store===sf;}):EMPS).filter(function(e){return !e.is_mgr&&canSeeEmp(e);});
   if(rf)emps=emps.filter(function(e){return e.rank37===rf;});
   if(tf)emps=emps.filter(function(e){return e.table37===tf;});
   if(ff==="確定済")emps=emps.filter(function(e){return getStatus(e.name)===3;});
@@ -2262,18 +2321,18 @@ function renderNewTable(){
 }
 
 function renderAdmMetrics(){
-  const gen=EMPS.filter(function(e){return !e.is_mgr&&(canSeeHD()||!isHdEmp(e));});
+  const gen=EMPS.filter(function(e){return !e.is_mgr&&canSeeEmp(e);});
   const p1=gen.filter(function(e){return getStatus(e.name)>=1;}).length;
   const p2=gen.filter(function(e){return getStatus(e.name)>=2;}).length;
   const p3=gen.filter(function(e){return getStatus(e.name)===3;}).length;
   document.getElementById("adm-metrics").innerHTML=[{l:"一般対象者",v:gen.length+"名"},{l:"①入力済",v:p1+"名"},{l:"②暫定済",v:p2+"名"},{l:"③確定済",v:p3+"名"}].map(function(m){return "<div class=\"metric\"><div class=\"mlb\">"+m.l+"</div><div class=\"mvl\">"+m.v+"</div></div>";}).join("");
 }
 function renderAdm(){
-  document.getElementById("adm-tb").innerHTML=EMPS.filter(function(e){return !e.is_mgr&&(canSeeHD()||!isHdEmp(e));}).map(function(emp){
+  document.getElementById("adm-tb").innerHTML=EMPS.filter(function(e){return !e.is_mgr&&canSeeEmp(e);}).map(function(emp){
     const au=autoCalc(emp),s=saves[emp.name]||{},st=getStatus(emp.name);
     const fR=s.fRank||s.mRank||"",fG=s.fGrade||s.mGrade||"";
     let mg="",nt="";if(fR&&fG&&emp.base_pay>0){const m=calcMig(emp,fR,fG);mg=m.tbl+" "+m.ng;nt=m.nextTarget>0?yen(m.nextTarget):"";}
-    return "<tr><td style=\"font-weight:700\">"+emp.name+"</td><td style=\"font-size:11px\">"+emp.store+"</td><td style=\"font-size:11px\">"+emp.rank37+"</td><td style=\"font-size:11px\">"+emp.grade37+"</td><td style=\"white-space:normal;line-height:1.4\">"+pct(emp.achieve)+(((emp.month_ratio||1)<1&&emp.target)?"<div style='margin-top:2px'>"+fmtActualTgt(emp)+"</div>":"")+"</td><td style=\"font-size:11px\">"+au.delta+(au.roleChanged?" ★":"")+"</td><td style=\"font-size:11px\">"+(s.hDelta||"—")+"</td><td style=\"font-size:11px\">"+(s.mDelta||"—")+"</td><td style=\"font-size:11px;font-weight:700\">"+fR+"</td><td style=\"font-size:11px;font-weight:700\">"+fG+"</td><td style=\"font-size:11px;color:#1565C0;font-weight:700\">"+mg+"</td><td>"+stBadge(st)+"</td></tr>";
+    return "<tr><td style=\"font-weight:700\">"+emp.name+"</td><td style=\"font-size:11px\">"+emp.store+"</td><td style=\"font-size:11px\">"+emp.rank37+"</td><td style=\"font-size:11px\">"+emp.grade37+"</td><td style=\"white-space:normal;line-height:1.4\">"+(isNoAchieveEmp(emp)?"—":pct(emp.achieve))+(((emp.month_ratio||1)<1&&emp.target)?"<div style='margin-top:2px'>"+fmtActualTgt(emp)+"</div>":"")+"</td><td style=\"font-size:11px\">"+au.delta+(au.roleChanged?" ★":"")+"</td><td style=\"font-size:11px\">"+(s.hDelta||"—")+"</td><td style=\"font-size:11px\">"+(s.mDelta||"—")+"</td><td style=\"font-size:11px;font-weight:700\">"+fR+"</td><td style=\"font-size:11px;font-weight:700\">"+fG+"</td><td style=\"font-size:11px;color:#1565C0;font-weight:700\">"+mg+"</td><td>"+stBadge(st)+"</td></tr>";
   }).join("");
 }
 
@@ -2358,7 +2417,7 @@ function exportCSV(){
       adj=adjustedMig(emp,nRank,nGrade,m.tbl);
       adj.rn=nRank;adj.ng=nGrade;
     }
-    rows.push(["一般",emp.store,emp.name,emp.emp_no,emp.rank37,emp.grade37,pct(emp.achieve),au.delta,s.hDelta||"",s.hRank||"",s.hGrade||"",s.comment||"",s.mDelta||"",s.mRank||"",s.mGrade||"",s.mMemo||"",s.fDelta||"",fR,fG,s.fMemo||"",m.tbl,m.ot||"",adj.rn||"",adj.rp||"",adj.na||"",adj.ng||"",adj.ngp||"",adj.nt||"",adj.diff||"",adj.nt?(adj.nt*14):"",adj.nextTarget||"",emp.memo||""]);
+    rows.push(["一般",emp.store,emp.name,emp.emp_no,emp.rank37,emp.grade37,(isNoAchieveEmp(emp)?"—":pct(emp.achieve)),au.delta,s.hDelta||"",s.hRank||"",s.hGrade||"",s.comment||"",s.mDelta||"",s.mRank||"",s.mGrade||"",s.mMemo||"",s.fDelta||"",fR,fG,s.fMemo||"",m.tbl,m.ot||"",adj.rn||"",adj.rp||"",adj.na||"",adj.ng||"",adj.ngp||"",adj.nt||"",adj.diff||"",adj.nt?(adj.nt*14):"",adj.nextTarget||"",emp.memo||""]);
   });
   // Manager rows appended
   EMPS.filter(function(e){return e.is_mgr;}).forEach(function(emp){
