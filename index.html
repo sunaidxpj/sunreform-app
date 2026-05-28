@@ -813,8 +813,8 @@ function renderStore(){
     var mh=calcMig(emp,hR,hG);
     var cert=emp.cert_allow||0;
     b.old_m+=emp.base_pay+emp.rank_pay+45000+cert;
-    b.auto_n+=(ma?ma.nt:0)+cert;
-    b.hope_n+=(mh?mh.nt:0)+cert;
+    b.auto_n+=(ma?ma.nt:0);
+    b.hope_n+=(mh?mh.nt:0);
     if(emp.achieve!=null){b.ach_sum+=emp.achieve;b.ach_cnt++;}
     if(s.comment)b.inp++;
   });
@@ -1166,8 +1166,8 @@ function renderInput(){
       var mh=calcMig(emp,hR,hG);
       var cert=emp.cert_allow||0;
       b.old_m+=emp.base_pay+emp.rank_pay+45000+cert;
-      b.auto_n+=(ma?ma.nt:0)+cert;
-      b.hope_n+=(mh?mh.nt:0)+cert;
+      b.auto_n+=(ma?ma.nt:0);
+      b.hope_n+=(mh?mh.nt:0);
       if(emp.achieve!=null){b.ach_sum+=emp.achieve;b.ach_cnt++;}
       if(s.comment)b.inp++;
     });
@@ -1317,9 +1317,9 @@ function renderMeet(){
       var mm=calcMig(emp,mR,mG);
       var cert=emp.cert_allow||0;
       b.old_m+=emp.base_pay+emp.rank_pay+45000+cert;
-      b.auto_n+=(ma?ma.nt:0)+cert;
-      b.hope_n+=(mh?mh.nt:0)+cert;
-      b.meet_n+=(mm?mm.nt:0)+cert;
+      b.auto_n+=(ma?ma.nt:0);
+      b.hope_n+=(mh?mh.nt:0);
+      b.meet_n+=(mm?mm.nt:0);
       if(emp.achieve!=null){b.ach_sum+=emp.achieve;b.ach_cnt++;}
       // 入力判定: 変動または役職が設定されていることを確認
       if(s.hDelta||s.hRank)b.inp1++;
@@ -1549,9 +1549,9 @@ function renderFinal(){
       var fR=s.fRank||mR,fG=s.fGrade||mG;var mf=calcMig(emp,fR,fG);
       var cert=emp.cert_allow||0,cd=emp.cert_deduct||0,mr=emp.month_ratio||1.0;
       b.old_m+=emp.base_pay+emp.rank_pay+45000+cert;
-      b.auto_n+=(ma?ma.nt:0)+cert;
-      b.hope_n+=(mh?mh.nt:0)+cert;
-      b.meet_n+=(mm?mm.nt:0)+cert;
+      b.auto_n+=(ma?ma.nt:0);
+      b.hope_n+=(mh?mh.nt:0);
+      b.meet_n+=(mm?mm.nt:0);
       b.final_n+=(mf?mf.nt:0)+cert;
       b.tgt+=mf?(mf.nextTarget||0):0;
       if(mf){if(isPart(emp))b.jinji+=mf.nt*12*mr;else b.jinji+=(mf.nt+cert-cd)*14*1.2*mr;}
@@ -2276,7 +2276,7 @@ function calcImpact(){
     var m=calcMig(emp,eR,eG);if(!m)return;
     var cert=emp.cert_allow||0;
     om+=emp.base_pay+emp.rank_pay+45000+cert;
-    nm+=m.nt+cert;
+    nm+=m.nt;
     // 中途社員(month_ratio<1)は実設定(emp.target×month_ratio)、通常は計算値
     var mr=emp.month_ratio||1.0;
     if(mr<1.0&&emp.target){tgt+=Math.round(emp.target*mr);}else{tgt+=m.nextTarget||0;}
@@ -2285,7 +2285,7 @@ function calcImpact(){
     if(isPart(emp)){
       totalJinji+=(m.nt)*12*mr;
     }else{
-      totalJinji+=(m.nt+cert-cd)*14*1.2*mr;
+      totalJinji+=(m.nt-cd)*14*1.2*mr;
     }
     cnt++;
     if(s.fRank&&s.fGrade)conf++;
