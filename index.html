@@ -1491,7 +1491,23 @@ function buildSalaryPreview(emp,r,g){
     if(tgt>0)html+='<div style="color:#1565C0">設定 <b>'+yen(tgt)+'</b></div>';
     return html+'</div>';
   }
-  if(!emp||emp.base_pay===0)return "<span style=\"color:#BDBDBD;font-size:11px\">—</span>";
+  if(emp&&emp.base_pay===0&&!isPart(emp)){
+    var curR=r||emp.rank37, curG=g||emp.grade37;
+    var rp=lookupOldRankPay(emp.table37,curR,curG)||0;
+    var rp37=lookupOldRankPay(emp.table37,emp.rank37,emp.grade37)||0;
+    if(!rp&&!rp37)return "<span style=\"color:#BDBDBD;font-size:11px\">—</span>";
+    var monthly=(rp||rp37)+45000+(emp.cert_allow||0);
+    var monthly37=rp37+45000+(emp.cert_allow||0);
+    var mDiff=monthly-monthly37;
+    var dc=mDiff===0?"#1565C0":mDiff>0?"#2E7D32":"#C62828";
+    var sign=mDiff>=0?"+":"";
+    var yr=monthly*14,yrDiff=mDiff*14;
+    return '<div style="font-size:11px;line-height:1.4">'
+      +'<div>月 <b>'+yen(monthly)+'</b> / 年 <b style="color:#C97A2E">'+yen(yr)+'</b></div>'
+      +'<div style="color:'+dc+';font-weight:700">差 '+sign+yen(mDiff)+'/月 ('+sign+yen(yrDiff)+'/年)</div>'
+      +'</div>';
+  }
+  if(!emp)return "<span style=\"color:#BDBDBD;font-size:11px\">—</span>";
   r=r||emp.rank37; g=g||emp.grade37;
   if(!r||!g)return "<span style=\"color:#BDBDBD;font-size:11px\">—</span>";
   var m=calcMig(emp,r,g);
