@@ -2317,11 +2317,16 @@ function checkCSVAuth(){
 function exportCSV(){
   const rows=[["区分","店舗","氏名","社員番号","37期役職","37期等級","達成率","自動提案","①希望変動","①希望役職","①希望等級","①コメント","②暫定変動","②暫定役職","②暫定等級","②メモ","③確定変動","③確定役職","③確定等級","③メモ","新テーブル","旧総額","④新役職","④新役職手当","④新年齢給","④新等級","④新等級手当","④新月収","④月収差額","④年収(×14)","④来期利益設定","備考"]];
   EMPS.filter(function(e){return !e.is_mgr;}).forEach(function(emp){
-    const au=autoCalc(emp),s=saves[emp.name]||{},fR=s.fRank||s.mRank||"",fG=s.fGrade||s.mGrade||"";
+    const au=autoCalc(emp),s=saves[emp.name]||{};
+    // ③確定列: 実際の確定/暫定入力のみ（空欄もOK）
+    const fR=s.fRank||s.mRank||"",fG=s.fGrade||s.mGrade||"";
+    // ④計算: 確定→暫定→希望→自動提案→rank37 の順でフォールバック
+    const cr=s.fRank||s.mRank||s.hRank||au.rank||emp.rank37;
+    const cg=s.fGrade||s.mGrade||s.hGrade||au.grade||emp.grade37;
     var m={tbl:"",ot:0,na:0,rn:"",rp:0,ng:"",ngp:0,nt:0,diff:0,nextTarget:0};
     var adj=m;
-    if(fR&&fG&&emp.base_pay>0&&!isPart(emp)){
-      m=calcMig(emp,fR,fG);
+    if(cr&&cg&&emp.base_pay>0&&!isPart(emp)){
+      m=calcMig(emp,cr,cg);
       var nRank=s.nRank||m.rn;
       var nGrade=s.nGrade||m.ng;
       adj=adjustedMig(emp,nRank,nGrade,m.tbl);
@@ -2334,7 +2339,7 @@ function exportCSV(){
     const s=saves[emp.name]||{};
     const sal=numParse(s.fDelta)||emp.prev_salary||"";
     const tgt=numParse(s.fRank)||emp.prev_target||"";
-    rows.push(["マネージャー",emp.store,emp.name,emp.emp_no,"マネージャー","等級無",pct(emp.achieve),"","","","","","","","","",sal,"","",s.fMemo||"","","","","","","","",sal,"",tgt,emp.memo||""]);
+    rows.push(["マネージャー",emp.store,emp.name,emp.emp_no,"マネージャー","等級無",pct(emp.achieve),"","","","","","","","","",sal,"","",s.fMemo||"","","","","","","","",sal,"","",tgt,emp.memo||""]);
   });
   const csv="\uFEFF"+rows.map(function(r){return r.map(function(v){return "\""+String(v).replace(/"/g,"\"\"")+"\"";}).join(",");}).join("\n");
   const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));a.download="38期昇降格査定.csv";a.click();
