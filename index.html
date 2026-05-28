@@ -116,7 +116,7 @@ tr:hover td{background:#FAFAFA}
 <div id="impact-bar" style="margin:8px 20px 0;padding:10px 14px;background:linear-gradient(90deg,#FAEFDD,#E5C896);border:1px solid #E5C896;border-radius:8px;font-size:13px">
   <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:center">
     <div style="font-weight:700;color:#5C3210">📊 全社インパクト試算 <span style="font-size:11px;font-weight:normal;color:#616161">(一般+マネ)</span></div>
-    <div>一般 37期月額 <b id="imp-old" style="color:#555">—</b></div>
+    <div>37期月額 <b id="imp-old" style="color:#555">—</b></div>
     <div>→ 38期月額 <b id="imp-new" style="color:#1565C0">—</b></div>
     <div>月差 <span id="imp-diff" style="font-weight:700">—</span></div>
     <div>前年比 <span id="imp-pct" style="font-weight:700">—</span></div>
@@ -125,6 +125,7 @@ tr:hover td{background:#FAFAFA}
     <div>総労働分配率 <b id="imp-rate" style="color:#6A1B9A">—</b></div>
     <div style="font-size:11px;color:#757575;margin-left:auto" id="imp-note">—</div>
   </div>
+  <div id="imp-breakdown" style="display:none;margin-top:7px;padding-top:7px;border-top:1px solid #E5C896;display:flex;gap:20px;flex-wrap:wrap;font-size:11px"></div>
 </div>
 <div class="tabs" style="margin-top:8px">
   <div class="tab on" id="tab-input" onclick="showTab(&#34;input&#34;)">①上長入力</div>
@@ -2411,9 +2412,10 @@ function renderAdm(){
 }
 
 function updateProg(){const gen=EMPS.filter(function(e){return !e.is_mgr;});const done=gen.filter(function(e){return saves[e.name]&&saves[e.name].comment;}).length;document.getElementById("prog-txt").textContent="①入力: "+done+"/"+gen.length+"名";updateImpact();}
-function calcImpact(){
+function calcImpactFor(filterFn){
   var om=0,nm=0,tgt=0,cnt=0,ret=0,conf=0,mgrSal=0,mgrTgt=0,mgrCnt=0,totalJinji=0;
   EMPS.forEach(function(emp){
+    if(filterFn&&!filterFn(emp))return;
     if(isMgr(emp)){
       var s=saves[emp.name]||{};
       var sal=numParse(s.fDelta);if(sal==null)sal=emp.prev_salary||0;
@@ -2424,42 +2426,53 @@ function calcImpact(){
       return;
     }
     if(isRetiring(emp)){ret++;return;}
-    if(emp.base_pay===0&&!isPart(emp))return;
     var s=saves[emp.name]||{};
     var ca=autoCalc(emp);
     var eR=s.fRank||s.mRank||s.hRank||ca.rank;
     var eG=s.fGrade||s.mGrade||s.hGrade||ca.grade;
+    if(emp.base_pay===0&&!isPart(emp)){
+      // HD/SSC正社員: age_pay+rankPay+cert+other
+      var rp=lookupOldRankPay(emp.table37,eR||emp.rank37,eG||emp.grade37)||0;
+      var rp37=lookupOldRankPay(emp.table37,emp.rank37,emp.grade37)||0;
+      if(!rp37)return;
+      var agePay=emp.age_pay||0,otherAllow=emp.other_allow||0,certAllow=emp.cert_allow||0;
+      om+=agePay+rp37+certAllow+otherAllow;
+      nm+=agePay+(rp||rp37)+certAllow+otherAllow;
+      totalJinji+=(agePay+(rp||rp37)+certAllow+otherAllow)*14*1.2;
+      cnt++;if(s.fRank&&s.fGrade)conf++;
+      return;
+    }
     if(!eR||!eG)return;
     var m=calcMig(emp,eR,eG);if(!m)return;
     var cert=emp.cert_allow||0;
     om+=emp.base_pay+emp.rank_pay+45000+cert;
     nm+=m.nt;
-    // 中途社員(month_ratio<1)は実設定(emp.target×month_ratio)、通常は計算値
     var mr=emp.month_ratio||1.0;
     if(mr<1.0&&emp.target){tgt+=Math.round(emp.target*mr);}else{tgt+=m.nextTarget||0;}
-    // 年間人件費 (パートは×12、一般は×14×1.2、月割考慮)
     var cd=emp.cert_deduct||0;
-    if(isPart(emp)){
-      totalJinji+=(m.nt)*12*mr;
-    }else{
-      totalJinji+=(m.nt-cd)*14*1.2*mr;
-    }
-    cnt++;
-    if(s.fRank&&s.fGrade)conf++;
+    if(isPart(emp)){totalJinji+=(m.nt)*12*mr;}
+    else{totalJinji+=(m.nt-cd)*14*1.2*mr;}
+    cnt++;if(s.fRank&&s.fGrade)conf++;
   });
   var distRate=tgt>0?(totalJinji/tgt):0;
   var pct=om>0?((nm-om)/om*100):0;
   return{om:om,nm:nm,dm:nm-om,dy:(nm-om)*14,pct:pct,tgt:tgt,cnt:cnt,ret:ret,conf:conf,mgrSal:mgrSal,mgrTgt:mgrTgt,mgrCnt:mgrCnt,totalJinji:totalJinji,distRate:distRate};
 }
+function calcImpact(){return calcImpactFor(null);}
 function fmtSign(v){if(v===0)return "¥0";return (v>0?"+":"-")+"¥"+Math.round(Math.abs(v)).toLocaleString("ja-JP");}
+function fmtImpPct(pct){var s=(pct>=0?"+":"")+pct.toFixed(2)+"%";return s;}
 function updateImpact(){
   try{
+    var bar=document.getElementById("impact-bar");
+    // 全社以外は非表示
+    if(currentCompanyFilter!=="all"){if(bar)bar.style.display="none";return;}
+    if(bar)bar.style.display="";
     var i=calcImpact();
     document.getElementById("imp-old").textContent=yen(i.om);
     document.getElementById("imp-new").textContent=yen(i.nm);
     var d=document.getElementById("imp-diff");d.textContent=fmtSign(i.dm);d.style.color=i.dm>0?"#C62828":i.dm<0?"#C97A2E":"#555";
     var pctEl=document.getElementById("imp-pct");
-    if(pctEl){var ps=(i.pct>=0?"+":"")+i.pct.toFixed(2)+"%";pctEl.textContent=ps;pctEl.style.color=i.pct>0?"#C62828":i.pct<0?"#2E7D32":"#555";}
+    if(pctEl){pctEl.textContent=fmtImpPct(i.pct);pctEl.style.color=i.pct>0?"#C62828":i.pct<0?"#2E7D32":"#555";}
     var dy=document.getElementById("imp-diffy");dy.textContent=fmtSign(i.dy);dy.style.color=i.dy>0?"#C62828":i.dy<0?"#C97A2E":"#555";
     document.getElementById("imp-tgt").textContent=yen(i.tgt);
     var rateEl=document.getElementById("imp-rate");
@@ -2469,6 +2482,28 @@ function updateImpact(){
       rateEl.textContent=pct;rateEl.style.color=col;
     }
     document.getElementById("imp-note").textContent="一般 "+i.cnt+"名(確定"+i.conf+"・退職除外"+i.ret+") + マネ "+(i.mgrCnt||0)+"名 / 総人件費 "+yen(i.totalJinji);
+    // 各社 breakdown
+    var bd=document.getElementById("imp-breakdown");
+    if(bd){
+      var companies=[
+        {label:"サンリフォーム", fn:function(e){return !isHdEmp(e)&&!isSscEmp(e);}},
+        {label:"HD", fn:isHdEmp},
+        {label:"SSC", fn:isSscEmp},
+      ];
+      bd.innerHTML=companies.map(function(c){
+        var ci=calcImpactFor(c.fn);
+        if(ci.om===0&&ci.nm===0)return "";
+        var ps=fmtImpPct(ci.pct);
+        var pc=ci.pct>0?"#C62828":ci.pct<0?"#2E7D32":"#888";
+        return '<span style="background:rgba(255,255,255,0.5);border-radius:6px;padding:3px 8px;white-space:nowrap">'
+          +'<b style="color:#5C3210">'+c.label+'</b> '
+          +'37期 '+yen(ci.om)+' → 38期 '+yen(ci.nm)
+          +' <span style="color:'+pc+';font-weight:700">'+ps+'</span>'
+          +' 月差'+fmtSign(ci.dm)
+          +'</span>';
+      }).join('');
+      bd.style.display=bd.innerHTML?'flex':'none';
+    }
   }catch(e){console.warn("updateImpact:",e);}
 }
 
