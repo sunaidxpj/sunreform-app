@@ -390,6 +390,14 @@ tr:hover td{background:#FAFAFA}
       </div>
       <div class="field" style="flex:1"></div>
     </div>
+    <div class="row">
+      <div class="field" style="flex:1">
+        <label>👁 HD社員閲覧許可（SUNホールディングス）</label>
+        <div style="font-size:11px;color:#757575;margin-bottom:4px">空欄=管理者のみ。ここに追加したメールは本社(HD)社員の査定を閲覧・編集できます。</div>
+        <textarea id="perm-hd" style="width:100%;padding:6px;min-height:100px;font-family:monospace;font-size:12px" placeholder="hd_manager@sunhd.jp"></textarea>
+      </div>
+      <div class="field" style="flex:1"></div>
+    </div>
     <div style="display:flex;gap:8px;align-items:center;margin-top:10px">
       <button class="btn btn-p" onclick="savePerm()">保存</button>
       <span class="smsg" id="perm-msg">✓ 保存しました</span>
@@ -730,9 +738,9 @@ function updateStickyOffsets(){
 }
 function init(){
   const ss=document.getElementById("sel-store");
-  STORES.forEach(function(s){ss.add(new Option(s,s));});
+  STORES.forEach(function(s){if(canSeeHD()||s!=="本社(HD)")ss.add(new Option(s,s));});
   ["meet-sf","final-sf","mig-sf"].forEach(function(id){
-    const el=document.getElementById(id);STORES.forEach(function(s){el.add(new Option(s,s));});
+    const el=document.getElementById(id);STORES.forEach(function(s){if(canSeeHD()||s!=="本社(HD)")el.add(new Option(s,s));});
   });
   // ①入力/②会議/④移行タブの役職フィルタを EMPS から populate（is_mgr 除外）
   (function(){
@@ -1135,7 +1143,7 @@ function renderInput(){
   const rf=rfEl?rfEl.value:"";
   const ffEl=document.getElementById("input-ff");
   const ff=ffEl?ffEl.value:"";
-  let emps=store?EMPS.filter(function(e){return e.store===store&&!e.is_mgr;}):[];
+  let emps=(store?EMPS.filter(function(e){return e.store===store&&!e.is_mgr;}):[]).filter(function(e){return canSeeHD()||!isHdEmp(e);});
   if(rf)emps=emps.filter(function(e){return e.rank37===rf;});
   const tfEl=document.getElementById("input-tf");const tf=tfEl?tfEl.value:"";
   if(tf)emps=emps.filter(function(e){return e.table37===tf;});
@@ -1520,7 +1528,7 @@ function renderFinal(){
   const rfEl=document.getElementById("final-rf");const rf=rfEl?rfEl.value:"";
   const ffEl=document.getElementById("final-ff");const ff=ffEl?ffEl.value:"";
   const tfEl=document.getElementById("final-tf");const tf=tfEl?tfEl.value:"";
-  let emps=(sf?EMPS.filter(function(e){return e.store===sf;}):EMPS).filter(function(e){return !e.is_mgr;});
+  let emps=(sf?EMPS.filter(function(e){return e.store===sf;}):EMPS).filter(function(e){return !e.is_mgr&&(canSeeHD()||!isHdEmp(e));});
   if(rf)emps=emps.filter(function(e){return e.rank37===rf;});
   if(tf)emps=emps.filter(function(e){return e.table37===tf;});
   if(ff==="未確定")emps=emps.filter(function(e){return getStatus(e.name)<3;});
@@ -1669,7 +1677,7 @@ function calcPreview(empName, rank, grade){
   return "<div style=\"font-size:11px;color:#0D47A1;margin-top:2px\">→"+m.tbl+" "+m.ng+" 新総額:"+yen(m.nt)+" <span class=\"badge "+dc+"\">"+( m.diff>=0?"+":"")+yen(m.diff)+"</span>"+ntStr+"</div>";
 }
 const saveTimer={};
-const APP_CONFIG={acl:{final:[],mgr:[],eval:[],csv:[],table:[]}};
+const APP_CONFIG={acl:{final:[],mgr:[],eval:[],csv:[],table:[],hd:[]}};
 function curEmail(){return currentUser?(currentUser.username||"").toLowerCase():"";}
 function canAccess(area){
   if(isAdmin())return true;
@@ -1678,6 +1686,9 @@ function canAccess(area){
   if(list.indexOf("*")>=0)return true; // ワイルドカード = 全員許可
   return list.indexOf(curEmail())>=0;
 }
+function canSeeHD(){return isAdmin()||canAccess("hd");}
+function isHdEmp(e){return !!(e&&e.memo==="HD");}
+
 const SETTINGS_EMP_NO="9999";
 const MGR_SAL_EMP_NO="9998";
 async function loadMgrSalaries(){
@@ -1699,7 +1710,7 @@ async function loadSettings(){
   // 1. localStorage から即反映
   try{
     var ls=localStorage.getItem("app_acl");
-    if(ls){var p=JSON.parse(ls);APP_CONFIG.acl.final=p.final||[];APP_CONFIG.acl.mgr=p.mgr||[];APP_CONFIG.acl.eval=p.eval||[];APP_CONFIG.acl.csv=p.csv||[];APP_CONFIG.acl.table=p.table||[];}
+    if(ls){var p=JSON.parse(ls);APP_CONFIG.acl.final=p.final||[];APP_CONFIG.acl.mgr=p.mgr||[];APP_CONFIG.acl.eval=p.eval||[];APP_CONFIG.acl.csv=p.csv||[];APP_CONFIG.acl.table=p.table||[];APP_CONFIG.acl.hd=p.hd||[];}
   }catch(e){}
   // 2. Kintone から上書き (あれば)
   try{
@@ -1714,6 +1725,8 @@ async function loadSettings(){
           APP_CONFIG.acl.eval=parsed.eval||APP_CONFIG.acl.eval;
           APP_CONFIG.acl.csv=parsed.csv||APP_CONFIG.acl.csv;
           APP_CONFIG.acl.table=parsed.table||APP_CONFIG.acl.table;
+          APP_CONFIG.acl.hd=parsed.hd||APP_CONFIG.acl.hd;
+          updateHdStoreOptions();
           localStorage.setItem("app_acl",m);
         }catch(e){console.warn("settings parse:",e);}
       }
@@ -1733,12 +1746,21 @@ function permClear(area){
   ta.value="";
   savePerm();
 }
+function updateHdStoreOptions(){
+  ["sel-store","meet-sf","final-sf","mig-sf"].forEach(function(id){
+    var el=document.getElementById(id);if(!el)return;
+    var has=Array.from(el.options).some(function(o){return o.value==="本社(HD)";});
+    if(canSeeHD()&&!has){el.add(new Option("本社(HD)","本社(HD)"));}
+    else if(!canSeeHD()&&has){var idx=Array.from(el.options).findIndex(function(o){return o.value==="本社(HD)";});if(idx>=0)el.remove(idx);}
+  });
+}
 function renderPerm(){
   document.getElementById("perm-final").value=APP_CONFIG.acl.final.join("\n");
   document.getElementById("perm-mgr").value=APP_CONFIG.acl.mgr.join("\n");
   document.getElementById("perm-eval").value=APP_CONFIG.acl.eval.join("\n");
   document.getElementById("perm-csv").value=APP_CONFIG.acl.csv.join("\n");
   document.getElementById("perm-table").value=(APP_CONFIG.acl.table||[]).join("\n");
+  document.getElementById("perm-hd").value=(APP_CONFIG.acl.hd||[]).join("\n");
   document.getElementById("perm-current").textContent="あなた: "+curEmail()+" (管理者: "+(isAdmin()?"はい":"いいえ")+")";
 }
 async function savePerm(){
@@ -1747,6 +1769,8 @@ async function savePerm(){
   APP_CONFIG.acl.eval=parseEmails(document.getElementById("perm-eval").value);
   APP_CONFIG.acl.csv=parseEmails(document.getElementById("perm-csv").value);
   APP_CONFIG.acl.table=parseEmails(document.getElementById("perm-table").value);
+  APP_CONFIG.acl.hd=parseEmails(document.getElementById("perm-hd").value);
+  updateHdStoreOptions();
   var json=JSON.stringify(APP_CONFIG.acl);
   // localStorageには必ず保存
   try{localStorage.setItem("app_acl",json);}catch(e){}
@@ -1847,7 +1871,7 @@ function renderMigrate(){
   const sf=document.getElementById("mig-sf").value,ff=document.getElementById("mig-ff").value;
   const rf=document.getElementById("mig-rf").value;
   const tfEl=document.getElementById("mig-tf");const tf=tfEl?tfEl.value:"";
-  let emps=(sf?EMPS.filter(function(e){return e.store===sf;}):EMPS).filter(function(e){return !e.is_mgr;});
+  let emps=(sf?EMPS.filter(function(e){return e.store===sf;}):EMPS).filter(function(e){return !e.is_mgr&&(canSeeHD()||!isHdEmp(e));});
   if(rf)emps=emps.filter(function(e){return e.rank37===rf;});
   if(tf)emps=emps.filter(function(e){return e.table37===tf;});
   if(ff==="確定済")emps=emps.filter(function(e){return getStatus(e.name)===3;});
@@ -2238,14 +2262,14 @@ function renderNewTable(){
 }
 
 function renderAdmMetrics(){
-  const gen=EMPS.filter(function(e){return !e.is_mgr;});
+  const gen=EMPS.filter(function(e){return !e.is_mgr&&(canSeeHD()||!isHdEmp(e));});
   const p1=gen.filter(function(e){return getStatus(e.name)>=1;}).length;
   const p2=gen.filter(function(e){return getStatus(e.name)>=2;}).length;
   const p3=gen.filter(function(e){return getStatus(e.name)===3;}).length;
   document.getElementById("adm-metrics").innerHTML=[{l:"一般対象者",v:gen.length+"名"},{l:"①入力済",v:p1+"名"},{l:"②暫定済",v:p2+"名"},{l:"③確定済",v:p3+"名"}].map(function(m){return "<div class=\"metric\"><div class=\"mlb\">"+m.l+"</div><div class=\"mvl\">"+m.v+"</div></div>";}).join("");
 }
 function renderAdm(){
-  document.getElementById("adm-tb").innerHTML=EMPS.filter(function(e){return !e.is_mgr;}).map(function(emp){
+  document.getElementById("adm-tb").innerHTML=EMPS.filter(function(e){return !e.is_mgr&&(canSeeHD()||!isHdEmp(e));}).map(function(emp){
     const au=autoCalc(emp),s=saves[emp.name]||{},st=getStatus(emp.name);
     const fR=s.fRank||s.mRank||"",fG=s.fGrade||s.mGrade||"";
     let mg="",nt="";if(fR&&fG&&emp.base_pay>0){const m=calcMig(emp,fR,fG);mg=m.tbl+" "+m.ng;nt=m.nextTarget>0?yen(m.nextTarget):"";}
