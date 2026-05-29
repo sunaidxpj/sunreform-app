@@ -2516,124 +2516,108 @@ function updateImpact(){
 }
 
 function checkExcelAuth(){
-  if(canAccess("csv")){triggerExcelExport();}
+  if(canAccess("csv")){exportExcelDirect();}
   else{denyAlert("csv");}
 }
-function triggerExcelExport(){
+function exportExcelDirect(){
   if(typeof XLSX==='undefined'){alert('SheetJSが読み込まれていません。ページを再読込してください。');return;}
-  var input=document.createElement('input');
-  input.type='file';input.accept='.xlsx,.xls';
-  input.onchange=function(ev){
-    var file=ev.target.files[0];if(!file)return;
-    var reader=new FileReader();
-    reader.onload=function(e){
-      try{exportExcelFromTemplate(new Uint8Array(e.target.result));}
-      catch(err){console.error(err);alert('Excel出力エラー: '+err.message);}
-    };
-    reader.readAsArrayBuffer(file);
-  };
-  input.click();
-}
-function exportExcelFromTemplate(data){
-  var wb=XLSX.read(data,{type:'array',cellStyles:true,cellNF:true});
-  var sheetName=wb.SheetNames.find(function(n){return n.indexOf('査定表')>=0;})||wb.SheetNames[0];
-  var ws=wb.Sheets[sheetName];
-  if(!ws)throw new Error('シートが見つかりません');
-  var range=XLSX.utils.decode_range(ws['!ref']);
-  function getV(r,c){var addr=XLSX.utils.encode_cell({r:r,c:c});var cell=ws[addr];return(cell&&cell.v!=null)?cell.v:null;}
-  function setN(r,c,val){var addr=XLSX.utils.encode_cell({r:r,c:c});var ex=ws[addr]||{};ws[addr]=Object.assign({},ex,{v:Number(val)||0,t:'n'});delete ws[addr].f;}
-  function setS(r,c,val){var addr=XLSX.utils.encode_cell({r:r,c:c});var ex=ws[addr]||{};ws[addr]=Object.assign({},ex,{v:String(val),t:'s'});delete ws[addr].f;}
-  // emp name → EMPS entry
-  var empMap={};
-  EMPS.forEach(function(emp){empMap[String(emp.name||'').replace(/[\s　]/g,'')]=emp;});
-  var updated=0,skipped=0;
-  for(var ri=2;ri<=range.e.r;ri++){
-    var rawName=getV(ri,2);
-    if(rawName==null||rawName==='')continue;
-    var emp=empMap[String(rawName).replace(/[\s　]/g,'')];
-    if(!emp){skipped++;continue;}
-    var s=saves[emp.name]||{};
-    var au=autoCalc(emp);
-    var eR=s.fRank||s.mRank||s.hRank||au.rank||emp.rank37;
-    var eG=s.fGrade||s.mGrade||s.hGrade||au.grade||emp.grade37;
-    var age38=getAge(emp.birth_date)||(((getV(ri,3)||0)+1));
-    var sal37=getV(ri,11)||0;  // col12: 37期手当含
-    var col30val=getV(ri,29)||0;  // col30: 38期手当 (preserved)
-    // マネージャー: 年齢のみ
-    if(isMgr(emp)){setN(ri,21,age38);updated++;continue;}
-    var certDeduct=emp.cert_deduct||0;
-    var distRate=emp.dist_rate||0.33;
-    var monthRatio=emp.month_ratio||1.0;
-    // パート
-    if(isPart(emp)){
-      setN(ri,21,age38);
-      setS(ri,23,eR||emp.rank37);
-      setS(ri,24,eG||emp.grade37);
-      updated++;continue;
-    }
-    // HD/SSC正社員 (base_pay===0)
-    if(emp.base_pay===0){
-      var rp37=lookupOldRankPay(emp.table37,emp.rank37,emp.grade37)||0;
-      var rp38=lookupOldRankPay(emp.table37,eR||emp.rank37,eG||emp.grade37)||rp37;
-      var agePay37=emp.age_pay||0;
-      var agePay38=lookupOldAgePay(emp.table37,getAge(emp.birth_date))||agePay37;
-      var certAllow=emp.cert_allow||0;
-      var otherAllow=emp.other_allow||0;
-      var col31hd=agePay38+rp38+certAllow+otherAllow;
-      var jinjihd=(col31hd-certDeduct)*14*1.2*monthRatio;
-      var nextTgthd=Math.ceil(jinjihd/distRate/100000)*100000;
-      setN(ri,21,age38);
-      setS(ri,22,emp.table37||'');
-      setS(ri,23,eR||emp.rank37);
-      setS(ri,24,eG||emp.grade37);
-      setN(ri,25,agePay38);
-      setN(ri,26,rp38);
-      setN(ri,27,0);
-      setN(ri,28,agePay38+rp38);
-      // ri,29 (col30) preserved
-      setN(ri,30,col31hd);
-      setN(ri,31,col31hd*14);
-      setN(ri,32,certDeduct);
-      setN(ri,33,jinjihd);
-      setN(ri,34,nextTgthd);
-      setN(ri,35,(col31hd-sal37)*14);
-      setN(ri,36,col31hd-sal37);
-      updated++;continue;
-    }
-    // 一般社員
-    var certAllow=emp.cert_allow||0;
-    var newAgePay=lookupOldAgePay(emp.table37,getAge(emp.birth_date))||emp.base_pay;
-    var adjRankPay=emp.rank_pay;
-    var baseMaster=lookupOldRankPay(emp.table37,emp.rank37,emp.grade37);
-    var sugMaster=(eR&&eG)?lookupOldRankPay(emp.table37,eR,eG):null;
-    if(baseMaster!=null&&sugMaster!=null){adjRankPay=emp.rank_pay+(sugMaster-baseMaster);}
-    var col29=newAgePay+adjRankPay+45000;
-    var col31=col29+col30val;
-    var jinji=(col31-certDeduct)*14*1.2*monthRatio;
-    var nextTgt=Math.ceil(jinji/distRate/100000)*100000;
-    setN(ri,21,age38);
-    setS(ri,22,emp.table37||'');
-    setS(ri,23,eR||emp.rank37);
-    setS(ri,24,eG||emp.grade37);
-    setN(ri,25,newAgePay);
-    setN(ri,26,adjRankPay);
-    setN(ri,27,45000);
-    setN(ri,28,col29);
-    // ri,29 (col30) preserved
-    setN(ri,30,col31);
-    setN(ri,31,col31*14);
-    setN(ri,32,certDeduct);
-    setN(ri,33,jinji);
-    setN(ri,34,nextTgt);
-    setN(ri,35,(col31-sal37)*14);
-    setN(ri,36,col31-sal37);
-    updated++;
-  }
-  var outBuf=XLSX.write(wb,{bookType:'xlsx',type:'array'});
-  var blob=new Blob([outBuf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
-  var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='38期昇降格査定_更新.xlsx';a.click();
-  setTimeout(function(){URL.revokeObjectURL(a.href);},60000);
-  alert('Excel出力完了 ✓\n更新: '+updated+'名  スキップ(小計行等): '+skipped+'行');
+  try{
+    var hdrs=[
+      "所属1","所属2","氏名","社員番号",
+      "37期年齢","37期テーブル","37期役職","37期等級",
+      "37期年齢給","37期役職等級手当","37期LP手当","37期基準額","37期各種手当","37期支給額","37期想定年収×14",
+      "来期利益設定","完工利益",
+      "達成率","自動提案",
+      "①希望変動","①希望役職","①希望等級","①コメント",
+      "②暫定変動","②暫定役職","②暫定等級",
+      "③確定変動","③確定役職","③確定等級",
+      "38期年齢","38期テーブル","38期役職","38期等級",
+      "38期年齢給","38期役職等級手当","38期LP手当","38期基準額","38期各種手当","38期支給額","38期想定年収×14",
+      "減額分","人件費計算","来期利益設定(計算)","年収差(×14)","月収差"
+    ];
+    var rows=[hdrs];
+    // 所属でソート
+    var emps=EMPS.slice().sort(function(a,b){var sa=a.store||'',sb=b.store||'';return sa<sb?-1:sa>sb?1:0;});
+    emps.forEach(function(emp){
+      if(isRetiring(emp))return;
+      var s=saves[emp.name]||{};
+      var au=autoCalc(emp);
+      var eR=s.fRank||s.mRank||s.hRank||au.rank||emp.rank37;
+      var eG=s.fGrade||s.mGrade||s.hGrade||au.grade||emp.grade37;
+      var age38=getAge(emp.birth_date)||0;
+      var age37=age38>0?age38-1:0;
+      var cd=emp.cert_deduct||0,dr=emp.dist_rate||0.33,mr=emp.month_ratio||1.0;
+      var r37sal=0,r37ann=0,r38ap=0,r38rp=0,r38lp=0,r38base=0,r38other=0,r38total=0,jinji=0,nxt=0;
+      var r37ap=0,r37rp=0,r37lp=0,r37base=0,r37cert=emp.cert_allow||0,r37other=0;
+      if(isMgr(emp)){
+        var ms=numParse(s.fDelta);if(ms==null)ms=emp.prev_salary||0;
+        r37sal=ms;r37ann=ms;r38total=ms;
+      } else if(isPart(emp)){
+        r37lp=45000;r37ap=emp.base_pay;r37rp=emp.rank_pay;
+        r37base=r37ap+r37rp+r37lp;r37other=r37cert;
+        r37sal=r37base+r37other;r37ann=r37sal*12;
+        r38total=r37sal;
+      } else if(emp.base_pay===0){
+        var brp=lookupOldRankPay(emp.table37,emp.rank37,emp.grade37)||0;
+        var nrp=lookupOldRankPay(emp.table37,eR||emp.rank37,eG||emp.grade37)||brp;
+        var bap=emp.age_pay||0;
+        var nap=lookupOldAgePay(emp.table37,age38)||bap;
+        var oa=emp.other_allow||0;
+        r37ap=bap;r37rp=brp;r37lp=0;r37base=bap+brp;r37other=r37cert+oa;
+        r37sal=r37base+r37other;r37ann=r37sal*14;
+        r38ap=nap;r38rp=nrp;r38lp=0;r38base=nap+nrp;r38other=r37cert+oa;
+        r38total=r38base+r38other;
+        jinji=(r38total-cd)*14*1.2*mr;nxt=Math.ceil(jinji/dr/100000)*100000;
+      } else {
+        r37lp=45000;r37ap=emp.base_pay;r37rp=emp.rank_pay;
+        r37base=r37ap+r37rp+r37lp;r37other=r37cert;
+        r37sal=r37base+r37other;r37ann=r37sal*14;
+        var nap2=lookupOldAgePay(emp.table37,age38)||emp.base_pay;
+        var adj=emp.rank_pay;
+        var bm=lookupOldRankPay(emp.table37,emp.rank37,emp.grade37);
+        var sm=(eR&&eG)?lookupOldRankPay(emp.table37,eR,eG):null;
+        if(bm!=null&&sm!=null)adj=emp.rank_pay+(sm-bm);
+        r38ap=nap2;r38rp=adj;r38lp=45000;r38base=nap2+adj+45000;r38other=r37cert;
+        r38total=r38base+r38other;
+        jinji=(r38total-cd)*14*1.2*mr;nxt=Math.ceil(jinji/dr/100000)*100000;
+      }
+      var sg=emp.store?emp.store.replace(/（.*）|\(.*\)/g,'').trim():'';
+      rows.push([
+        sg, emp.store||'', emp.name, emp.emp_no,
+        age37||'', emp.table37||'', emp.rank37||'', emp.grade37||'',
+        r37ap||'', r37rp||'', r37lp||'', r37base||'', r37other||'', r37sal||'', r37ann||'',
+        emp.is_mgr?'':(emp.target||''), emp.is_mgr?'':(emp.result||''),
+        emp.is_mgr||isNoAchieveEmp(emp)?'':((emp.achieve||0)*100).toFixed(1)+'%',
+        emp.is_mgr?'':(au.delta||''),
+        s.hDelta||'', s.hRank||'', s.hGrade||'', s.comment||'',
+        s.mDelta||'', s.mRank||'', s.mGrade||'',
+        s.fDelta||'', emp.is_mgr?'':(s.fRank||''), emp.is_mgr?'':(s.fGrade||''),
+        age38||'', emp.table37||'', eR||'', eG||'',
+        r38ap||'', r38rp||'', r38lp||'', r38base||'', r38other||'', r38total||'', r38total?(r38total*14):'',
+        cd||'', jinji||'', nxt||'',
+        (r38total&&r37sal)?(r38total-r37sal)*14:'',
+        (r38total&&r37sal)?r38total-r37sal:''
+      ]);
+    });
+    var ws=XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols']=[
+      {wch:12},{wch:18},{wch:10},{wch:7},
+      {wch:6},{wch:12},{wch:8},{wch:8},
+      {wch:9},{wch:12},{wch:7},{wch:9},{wch:9},{wch:9},{wch:11},
+      {wch:11},{wch:11},{wch:6},{wch:7},
+      {wch:7},{wch:8},{wch:8},{wch:14},
+      {wch:7},{wch:8},{wch:8},{wch:7},{wch:8},{wch:8},
+      {wch:6},{wch:12},{wch:8},{wch:8},
+      {wch:9},{wch:12},{wch:7},{wch:9},{wch:9},{wch:9},{wch:11},
+      {wch:8},{wch:11},{wch:12},{wch:11},{wch:9}
+    ];
+    var wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,'査定表 (ベース)',ws);
+    var buf=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+    var blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='38期昇降格査定.xlsx';a.click();
+    setTimeout(function(){URL.revokeObjectURL(a.href);},60000);
+  }catch(err){console.error(err);alert('Excel出力エラー: '+err.message);}
 }
 
 function checkCSVAuth(){
