@@ -1069,6 +1069,7 @@ function calcMgrEstimate(emp,prevSal,evalW){
 function renderMgr(){
   var EIGYO_HONBU_MGRS=['0007','1003','0101','0301'];
   var GL_MGRS=['0127','0104'];
+  var DIST55_MGRS=['0009','0010','0012','0013']; // 岩本・小森・小西・栗田: 分配率55%固定
   var rows="",tot={salary:0,tgt:0,prevSal:0,cnt:0,inp:0};
   EMPS.filter(function(e){return e.is_mgr&&!isSelfManager(e);}).forEach(function(emp){
     var s=saves[emp.name]||{};
@@ -1086,7 +1087,7 @@ function renderMgr(){
     var sugTgt=0,ownDistRate=0.66,ownIncome=0;
     if(!isEigyoHonbu&&!isGLMgr&&prevSal>0){
       var estTgt=calcMgrEstimate(emp,prevSal,evalW);
-      if(estTgt){ownIncome=Math.round(estTgt.estimate*14/13);ownDistRate=getMgrDistRate(ownIncome);sugTgt=Math.ceil(ownIncome*1.2/ownDistRate/100000)*100000;}
+      if(estTgt){ownIncome=Math.round(estTgt.estimate*14/13);ownDistRate=DIST55_MGRS.indexOf(emp.emp_no)>=0?0.55:getMgrDistRate(ownIncome);sugTgt=Math.ceil(ownIncome*1.2/ownDistRate/100000)*100000;}
     }
     if(curTgt==null&&s.fRank==null)curTgt=isEigyoHonbu?0:(sugTgt||emp.prev_target||0);
     var salVal=curSal==null?"":curSal;
