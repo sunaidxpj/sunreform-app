@@ -693,6 +693,19 @@ function calcMig(emp,cR,cG){
     var partTgt=Math.ceil(ot_actual*12/drP/100000)*100000;
     return{tbl:"パート",rn:emp.rank37,rp:emp.rank_pay,ot:ot_actual,na:0,ng:emp.grade37,ngp:emp.rank_pay,nt:ot_actual,diff:0,nextTarget:partTgt};
   }
+  // 北山(0104)・柴田(0127): マネージャー→グループリーダー特例
+  if(['0104','0127'].indexOf(emp.emp_no)>=0){
+    var na_gl=getAP(getAge(emp.birth_date),tbl);
+    var rp_gl=70000; // グループリーダー役職手当
+    var mgrPrev_cm=(saves[emp.name]||{}).prev_salary||0;
+    var ot_mgr=mgrPrev_cm>0?Math.round(mgrPrev_cm/14):0;
+    var fg_gl=findGrade(ot_mgr-na_gl-rp_gl-45000,tbl)||{grade:'G-1号',pay:0};
+    var nt_gl=na_gl+rp_gl+fg_gl.pay+45000;
+    var nt38_gl=nt_gl*(emp.jitan||1);
+    var jinji_gl=(nt38_gl-(emp.cert_deduct||0))*14*1.2*(emp.month_ratio||1);
+    var nextTgt_gl=Math.ceil(jinji_gl/0.51/100000)*100000;
+    return{tbl:tbl,rn:'グループリーダー',rp:rp_gl,ot:ot_mgr,na:na_gl,ng:fg_gl.grade,ngp:fg_gl.pay,nt:nt38_gl,diff:nt38_gl-ot_mgr,nextTarget:nextTgt_gl};
+  }
   // 新v15_2 用の数値 (④新テーブル移行 タブで使用)
   const na=getAP(getAge(emp.birth_date),tbl);
   const rn=RANK_MAP[rank]||"２級メンバー";
@@ -1190,7 +1203,8 @@ function renderMgr(){
     }else{
       tgtNoteHtml='<div style="font-size:9px;color:#BDBDBD;margin-top:2px">37期年俸を入力後に算出</div>';
     }
-    var incomeHtml=sal38>0?'<div style="font-size:9px;color:#546E7A;margin-top:1px">想定年収 '+yen(Math.round(sal38*14/13))+'</div>':'';
+    var childAllow38=emp.emp_no==='0127'?180000:0; // 柴田: 子供手当月1.5万×12
+    var incomeHtml=sal38>0?'<div style="font-size:9px;color:#546E7A;margin-top:1px">想定年収 '+yen(Math.round(sal38*14/13)+childAllow38)+(childAllow38?' <span style="color:#7B5EA7">+子手当</span>':'')+'</div>':'';
     rows+="<tr><td style=\"font-weight:700\">"+emp.name+"</td><td style=\"font-size:11px\">"+mgrTargetArea(emp)+"</td><td>"+achStr+"</td><td><input type=\"text\" value=\""+(prevSal?numFmt(prevSal):"")+"\" onchange=\"saveEmpField('"+emp.emp_no+"','"+emp.name+"','prev_salary','prev_salary',(numParse(this.value)||0));this.value=numFmt(numParse(this.value));renderMgr()\" style=\"width:100%;font-size:12px;padding:3px;text-align:right;color:#6A1B9A\" placeholder=\"37期年俸\"></td><td style=\"white-space:normal\">"+storeTgtHtml+"</td><td>"+evalSum+"</td><td style=\"white-space:normal\">"+estHtml+"</td><td><input type=\"text\" value=\""+(salVal===""?"":numFmt(salVal))+"\" onchange=\"svK('"+emp.emp_no+"','"+emp.name+"','fDelta','final_delta',(numParse(this.value)||0).toString());this.value=numFmt(numParse(this.value));if(typeof renderMgr==='function')renderMgr()\" style=\"width:100%;font-size:12px;padding:3px;text-align:right\" placeholder=\"例 12,000,000\">"+incomeHtml+"</td><td style=\"text-align:right\">"+diffHtml+"</td><td style=\"text-align:right\">"+pctHtml+"</td><td style=\"white-space:normal\"><input type=\"text\" value=\""+numFmt(tgtVal)+"\" onchange=\"svK('"+emp.emp_no+"','"+emp.name+"','fRank','final_rank',(numParse(this.value)||0).toString());this.value=numFmt(numParse(this.value))\" style=\"width:100%;font-size:12px;padding:3px;text-align:right\" placeholder=\"例 12,800,000\">"+tgtNoteHtml+"</td><td><input type=\"text\" value=\""+(s.fMemo||"").replace(/\"/g,'&quot;')+"\" onchange=\"svK('"+emp.emp_no+"','"+emp.name+"','fMemo','final_memo',this.value)\" style=\"font-size:11px;padding:3px;width:100%\" placeholder=\"役員メモ\"></td><td><input type=\"text\" value=\""+(emp.memo||"").replace(/\"/g,'&quot;')+"\" onchange=\"svMemo('"+emp.emp_no+"','"+emp.name+"',this.value)\" style=\"font-size:11px;padding:3px;width:100%;color:#6A1B9A\" placeholder=\"備考\"></td><td>"+stHtml+"</td></tr>"+evalDetailRow;
     if(curSal)tot.salary+=curSal;
     if(tgtVal)tot.tgt+=tgtVal;
@@ -2118,7 +2132,7 @@ function renderMigrate(){
   const sf=document.getElementById("mig-sf").value,ff=document.getElementById("mig-ff").value;
   const rf=document.getElementById("mig-rf").value;
   const tfEl=document.getElementById("mig-tf");const tf=tfEl?tfEl.value:"";
-  let emps=EMPS.filter(function(e){return !e.is_mgr&&empMatchesStoreFilter(e,sf)&&canSeeEmp(e);});
+  let emps=EMPS.filter(function(e){return (!e.is_mgr||e.emp_no==='0104'||e.emp_no==='0127')&&empMatchesStoreFilter(e,sf)&&canSeeEmp(e);});
   if(rf)emps=emps.filter(function(e){return e.rank37===rf;});
   if(tf)emps=emps.filter(function(e){return e.table37===tf;});
   if(ff==="確定済")emps=emps.filter(function(e){return getStatus(e.name)===3;});
@@ -2167,7 +2181,7 @@ function renderMigrate(){
     var stageLabel=s.fRank?'③確定':s.mRank?'②暫定':s.hRank?'①上長希望':'37期';
     const cs=fR&&fG?'<span style="font-size:10px;color:#757575">'+stageLabel+'</span><br>'+fR+" "+fG:"（査定前）";
     const age=getAge(emp.birth_date);
-    if(emp.base_pay===0&&emp.rank_pay===0)return "<tr><td style=\"font-weight:700\">"+emp.name+"</td><td style=\"font-size:11px\">"+emp.store+"</td><td style=\"font-size:11px\">"+emp.rank37+" "+emp.grade37+"</td><td style=\"font-size:11px\">"+cs+"</td><td colspan=\"8\" style=\"color:#BDBDBD;font-size:12px\">給与データなし</td></tr>";
+    if(emp.base_pay===0&&emp.rank_pay===0&&['0104','0127'].indexOf(emp.emp_no)<0)return "<tr><td style=\"font-weight:700\">"+emp.name+"</td><td style=\"font-size:11px\">"+emp.store+"</td><td style=\"font-size:11px\">"+emp.rank37+" "+emp.grade37+"</td><td style=\"font-size:11px\">"+cs+"</td><td colspan=\"8\" style=\"color:#BDBDBD;font-size:12px\">給与データなし</td></tr>";
     // calcMig での自動推奨
     const m=calcMig(emp,fR,fG);
     // 上書き保存値があれば優先
@@ -2209,7 +2223,14 @@ const NEW_GRADE_CODES=(function(){var arr=[];["G","F","E","D","C","B","A","S"].f
 function adjustedMig(emp,newRank,newGrade,newTbl){
   var certAllow=emp.cert_allow||0,certDeduct=emp.cert_deduct||0;
   var distRate=emp.dist_rate||0.33,monthRatio=emp.month_ratio_38!==undefined?emp.month_ratio_38:(emp.month_ratio||1.0),jitanRatio=emp.jitan||1;
+  // GL特定分配率: 豊田(0126)・武川(0125)=47%, 北山(0104)・柴田(0127)=51%
+  if(newRank==='グループリーダー'){
+    if(['0125','0126'].indexOf(emp.emp_no)>=0) distRate=0.47;
+    else if(['0104','0127'].indexOf(emp.emp_no)>=0) distRate=0.51;
+  }
   var ot=emp.base_pay+emp.rank_pay+45000+certAllow; // 各種手当込み
+  // マネージャー→GL転換時は前年俸/14をotに使用
+  if(emp.is_mgr&&ot<=45000){var mgrPs=(saves[emp.name]||{}).prev_salary||0;if(mgrPs>0)ot=Math.round(mgrPs/14);}
   if(isPart(emp)){
     return{na:0,rp:emp.rank_pay,nt:ot,diff:0,nextTarget:Math.ceil(ot*12/distRate/100000)*100000};
   }
