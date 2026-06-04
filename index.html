@@ -76,6 +76,7 @@ tr:hover td{background:#FAFAFA}
 .smsg{color:#C97A2E;font-size:12px;margin-top:6px;display:none}
 .prog-bar-wrap{height:5px;background:#E0E0E0;border-radius:3px;margin-top:4px;overflow:hidden}
 .prog-bar-fill{height:100%;background:#C97A2E;border-radius:3px;transition:width .3s}
+#mig-tip{position:fixed;display:none;background:#37474F;color:#fff;font-size:11px;padding:8px 12px;border-radius:6px;line-height:1.8;pointer-events:none;z-index:9999;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.3)}
 </style>
 </head>
 <body>
@@ -1166,14 +1167,13 @@ function renderMgr(){
           +'</div>';
       }
     }
-    var storeSumm=getMgrStoreSummary(emp);
     var storeTgtHtml;
-    if(storeSumm){
-      var sAch=storeSumm.target>0?(storeSumm.result/storeSumm.target):null;
+    if(emp.target&&emp.result){
+      var sAch=emp.target>0?(emp.result/emp.target):null;
       var sAchColor=sAch==null?"#9E9E9E":sAch>=1?"#2E7D32":sAch>=0.9?"#1565C0":"#C62828";
       storeTgtHtml='<div style="line-height:1.6;white-space:nowrap">'
-        +'<div style="font-size:11px;font-family:monospace">設定 '+yen(storeSumm.target)+'</div>'
-        +'<div style="font-size:10px;color:#546E7A;font-family:monospace">結果 '+yen(storeSumm.result)+'</div>'
+        +'<div style="font-size:11px;font-family:monospace">設定 '+yen(emp.target)+'</div>'
+        +'<div style="font-size:10px;color:#546E7A;font-family:monospace">結果 '+yen(emp.result)+'</div>'
         +(sAch!=null?'<div style="font-size:10px;font-weight:700;color:'+sAchColor+'">'+(sAch*100).toFixed(1)+'%</div>':'')
         +'</div>';
     }else{
@@ -2197,7 +2197,7 @@ function renderMigrate(){
       +"<td>"+roleSel+"</td>"
       +"<td class=\"mig-rp\" style=\"font-size:12px\">"+yen(adj.rp)+"</td>"
       +"<td>"+gradeSel+"</td>"
-      +"<td class=\"mig-preview\">"+formatSalaryPreview(adj.nt,adj.diff)+"</td>"
+      +"<td class=\"mig-preview\" data-na=\""+adj.na+"\" data-rp=\""+adj.rp+"\" data-ngp=\""+adj.ngp+"\" data-cert=\""+(emp.cert_allow||0)+"\" data-jitan=\""+(emp.jitan||1)+"\">"+formatSalaryPreview(adj.nt,adj.diff)+"</td>"
       +"<td class=\"mig-nxt\" style=\"font-size:12px;color:#C97A2E;font-weight:700\">"+yen(adj.nextTarget||0)+"</td>"
       +"</tr>";
   }).join("");
@@ -2267,7 +2267,10 @@ function updateMigRow(tr,emp,newRank,newGrade,tbl){
   var adj=adjustedMig(emp,newRank,newGrade,tbl);
   tr.querySelector(".mig-na").textContent=yen(adj.na);
   tr.querySelector(".mig-rp").textContent=yen(adj.rp);
-  tr.querySelector(".mig-preview").innerHTML=formatSalaryPreview(adj.nt,adj.diff);
+  var pc=tr.querySelector(".mig-preview");
+  pc.innerHTML=formatSalaryPreview(adj.nt,adj.diff);
+  pc.dataset.na=adj.na;pc.dataset.rp=adj.rp;pc.dataset.ngp=adj.ngp;
+  pc.dataset.cert=emp.cert_allow||0;pc.dataset.jitan=emp.jitan||1;
   tr.querySelector(".mig-nxt").textContent=yen(adj.nextTarget||0);
 }
 
@@ -2801,6 +2804,46 @@ async function logoutMS(){
   await msalInstance.logoutRedirect({postLogoutRedirectUri:"https://sunaidxpj.github.io/sunreform-app/"});
 }
 initAuth();
+// 新テーブル移行タブ: mig-preview ホバーツールチップ
+(function(){
+  var tip=document.getElementById('mig-tip');
+  document.addEventListener('mouseover',function(e){
+    var td=e.target.closest('.mig-preview');
+    if(!td)return;
+    var na=+td.dataset.na||0,rp=+td.dataset.rp||0,ngp=+td.dataset.ngp||0;
+    var cert=+td.dataset.cert||0,jitan=+td.dataset.jitan||1;
+    var lp=45000;
+    var lines=['<b>月収内訳</b>',
+      '年齢給　　 '+yen(na),
+      '役職手当　 '+yen(rp),
+      '等級手当　 '+yen(ngp),
+      'LP手当　　 '+yen(lp),
+      '資格手当　 '+yen(cert)];
+    var base=na+rp+ngp+lp+cert;
+    lines.push('―――――――――');
+    if(jitan!==1){
+      lines.push('小計　　　 '+yen(base));
+      lines.push('時短率　　 ×'+(jitan*100).toFixed(0)+'%');
+    }
+    lines.push('合計　　　 '+yen(Math.round(base*jitan)));
+    tip.innerHTML=lines.join('<br>');
+    tip.style.display='block';
+  });
+  document.addEventListener('mousemove',function(e){
+    if(tip.style.display==='none')return;
+    var x=e.clientX+14,y=e.clientY+14;
+    if(x+220>window.innerWidth)x=e.clientX-230;
+    tip.style.left=x+'px';tip.style.top=y+'px';
+  });
+  document.addEventListener('mouseout',function(e){
+    if(e.target.closest&&e.target.closest('.mig-preview')&&!e.currentTarget.contains(e.relatedTarget)){
+      // will be hidden by below
+    }
+    var td=e.target.closest('.mig-preview');
+    if(td&&!td.contains(e.relatedTarget))tip.style.display='none';
+  });
+})();
 </script>
+<div id="mig-tip"></div>
 </body>
 </html>
