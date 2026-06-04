@@ -1802,6 +1802,7 @@ function renderFinal(){
       "</div>";
   }catch(e){console.warn("final summary:",e);document.getElementById("final-summary").innerHTML="";}
   document.getElementById("final-tb").innerHTML=emps.map(function(emp){
+    if(isPart(emp))return "";
     const s=saves[emp.name]||{},ms=s.mDelta?s.mDelta+"→"+(s.mRank||"")+" "+(s.mGrade||""):"—";
     const fR=s.fRank||"",fG=s.fGrade||"",conf=fR&&fG?fR+" "+fG:s.mRank&&s.mGrade?s.mRank+" "+s.mGrade:"";
     const partFlag=isPart(emp);
