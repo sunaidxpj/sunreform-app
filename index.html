@@ -2693,12 +2693,13 @@ function checkExcelAuth(){
 function exportExcelDirect(){
   if(typeof XLSX==='undefined'){alert('SheetJSが読み込まれていません。ページを再読込してください。');return;}
   try{
+    const STATUS_LABEL=["未入力","①入力済","②暫定済","③確定済"];
     var hdrs=[
       "所属1","所属2","氏名","社員番号",
-      "37期年齢","37期テーブル","37期役職","37期等級",
-      "37期年齢給","37期役職等級手当","37期LP手当","37期基準額","37期各種手当","37期支給額","37期想定年収×14",
+      "37期年齢","37期テーブル","37期役職","37期等級","時短比率",
+      "37期月収","37期想定年収(×12/14)","37期LP手当","37期基準額","37期各種手当","37期支給額","37期想定年収",
       "来期利益設定","完工利益",
-      "達成率","自動提案",
+      "達成率","ステータス","自動提案変動","自動提案役職","自動提案等級",
       "①希望変動","①希望役職","①希望等級","①コメント",
       "②暫定変動","②暫定役職","②暫定等級",
       "③確定変動","③確定役職","③確定等級",
@@ -2707,7 +2708,6 @@ function exportExcelDirect(){
       "減額分","人件費計算","来期利益設定(計算)","年収差(×14)","月収差"
     ];
     var rows=[hdrs];
-    // 所属でソート
     var emps=EMPS.slice().sort(function(a,b){var sa=a.store||'',sb=b.store||'';return sa<sb?-1:sa>sb?1:0;});
     emps.forEach(function(emp){
       if(isRetiring(emp))return;
@@ -2717,17 +2717,21 @@ function exportExcelDirect(){
       var eG=s.fGrade||s.mGrade||s.hGrade||au.grade||emp.grade37;
       var age38=getAge(emp.birth_date)||0;
       var age37=age38>0?age38-1:0;
-      var cd=emp.cert_deduct||0,dr=emp.dist_rate||0.33,mr=emp.month_ratio||1.0;
+      var cd=emp.cert_deduct||0,dr=emp.dist_rate||0.33,mr=emp.month_ratio_38!==undefined?emp.month_ratio_38:(emp.month_ratio||1.0);
+      var jitan=emp.jitan||1;
       var r37sal=0,r37ann=0,r38ap=0,r38rp=0,r38lp=0,r38base=0,r38other=0,r38total=0,jinji=0,nxt=0;
       var r37ap=0,r37rp=0,r37lp=0,r37base=0,r37cert=emp.cert_allow||0,r37other=0;
       if(isMgr(emp)){
         var ms=numParse(s.fDelta);if(ms==null)ms=emp.prev_salary||0;
         r37sal=ms;r37ann=ms;r38total=ms;
       } else if(isPart(emp)){
-        r37lp=45000;r37ap=emp.base_pay;r37rp=emp.rank_pay;
-        r37base=r37ap+r37rp+r37lp;r37other=r37cert;
-        r37sal=r37base+r37other;r37ann=r37sal*12;
-        r38total=r37sal;
+        var pm37=getPartMonthly(emp,emp.grade37);
+        var pm38=getPartMonthly(emp,eG||emp.grade37);
+        r37ap=0;r37rp=0;r37lp=0;r37base=0;r37other=0;
+        r37sal=pm37;r37ann=pm37*12;
+        r38ap=pm38;r38rp=0;r38lp=0;r38base=pm38;r38other=0;
+        r38total=pm38;
+        nxt=getPartTarget(emp,eG||emp.grade37);
       } else if(emp.base_pay===0){
         var brp=lookupOldRankPay(emp.table37,emp.rank37,emp.grade37)||0;
         var nrp=lookupOldRankPay(emp.table37,eR||emp.rank37,eG||emp.grade37)||brp;
@@ -2742,40 +2746,42 @@ function exportExcelDirect(){
       } else {
         r37lp=45000;r37ap=emp.base_pay;r37rp=emp.rank_pay;
         r37base=r37ap+r37rp+r37lp;r37other=r37cert;
-        r37sal=r37base+r37other;r37ann=r37sal*14;
+        r37sal=(r37base+r37other)*jitan;r37ann=r37sal*14;
         var nap2=lookupOldAgePay(emp.table37,age38)||emp.base_pay;
         var adj=emp.rank_pay;
         var bm=lookupOldRankPay(emp.table37,emp.rank37,emp.grade37);
         var sm=(eR&&eG)?lookupOldRankPay(emp.table37,eR,eG):null;
         if(bm!=null&&sm!=null)adj=emp.rank_pay+(sm-bm);
         r38ap=nap2;r38rp=adj;r38lp=45000;r38base=nap2+adj+45000;r38other=r37cert;
-        r38total=r38base+r38other;
+        r38total=(r38base+r38other)*jitan;
         jinji=(r38total-cd)*14*1.2*mr;nxt=Math.ceil(jinji/dr/100000)*100000;
       }
       var sg=emp.store?emp.store.replace(/（.*）|\(.*\)/g,'').trim():'';
+      var st=STATUS_LABEL[getStatus(emp.name)]||'未入力';
       rows.push([
         sg, emp.store||'', emp.name, emp.emp_no,
-        age37||'', emp.table37||'', emp.rank37||'', emp.grade37||'',
+        age37||'', emp.table37||'', emp.rank37||'', emp.grade37||'', jitan!==1?jitan:'',
         r37ap||'', r37rp||'', r37lp||'', r37base||'', r37other||'', r37sal||'', r37ann||'',
         emp.is_mgr?'':(emp.target||''), emp.is_mgr?'':(emp.result||''),
         emp.is_mgr||isNoAchieveEmp(emp)?'':((emp.achieve||0)*100).toFixed(1)+'%',
-        emp.is_mgr?'':(au.delta||''),
+        st,
+        emp.is_mgr?'':(au.delta||''), emp.is_mgr?'':(au.rank||''), emp.is_mgr?'':(au.grade||''),
         s.hDelta||'', s.hRank||'', s.hGrade||'', s.comment||'',
         s.mDelta||'', s.mRank||'', s.mGrade||'',
         s.fDelta||'', emp.is_mgr?'':(s.fRank||''), emp.is_mgr?'':(s.fGrade||''),
         age38||'', emp.table37||'', eR||'', eG||'',
-        r38ap||'', r38rp||'', r38lp||'', r38base||'', r38other||'', r38total||'', r38total?(r38total*14):'',
+        r38ap||'', r38rp||'', r38lp||'', r38base||'', r38other||'', r38total||'', r38total&&!isPart(emp)?(r38total*14):'',
         cd||'', jinji||'', nxt||'',
-        (r38total&&r37sal)?(r38total-r37sal)*14:'',
+        (r38total&&r37sal)?(r38total-r37sal)*(isPart(emp)?12:14):'',
         (r38total&&r37sal)?r38total-r37sal:''
       ]);
     });
     var ws=XLSX.utils.aoa_to_sheet(rows);
     ws['!cols']=[
       {wch:12},{wch:18},{wch:10},{wch:7},
-      {wch:6},{wch:12},{wch:8},{wch:8},
+      {wch:6},{wch:12},{wch:8},{wch:8},{wch:6},
       {wch:9},{wch:12},{wch:7},{wch:9},{wch:9},{wch:9},{wch:11},
-      {wch:11},{wch:11},{wch:6},{wch:7},
+      {wch:11},{wch:11},{wch:6},{wch:8},{wch:7},{wch:8},{wch:8},
       {wch:7},{wch:8},{wch:8},{wch:14},
       {wch:7},{wch:8},{wch:8},{wch:7},{wch:8},{wch:8},
       {wch:6},{wch:12},{wch:8},{wch:8},
