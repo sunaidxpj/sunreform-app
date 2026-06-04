@@ -685,13 +685,6 @@ function calcMig(emp,cR,cG){
   var confRankPay=lookupOldRankPay(emp.table37,rank,grade);
   if(confRankPay==null)confRankPay=emp.rank_pay;
   const ot_actual=confAgePay+confRankPay+45000+certAllow;
-  // 暫定の旧体系役職等級手当（マスタから補正）
-  var adjRankPay=emp.rank_pay;
-  var baseMaster=lookupOldRankPay(emp.table37,emp.rank37,emp.grade37);
-  var sugMaster=lookupOldRankPay(emp.table37,rank,grade);
-  if(baseMaster!=null&&sugMaster!=null){
-    adjRankPay=emp.rank_pay+(sugMaster-baseMaster);
-  }
   if(isPart(emp)){
     var drP=emp.dist_rate||0.33;
     var partTgt=Math.ceil(ot_actual*12/drP/100000)*100000;
@@ -725,14 +718,11 @@ function calcMig(emp,cR,cG){
   const na=getAP(getAge(emp.birth_date),tbl);
   const rn=RANK_MAP[rank]||"２級メンバー";
   const rp=RANK_PAY[rn]||10000;
-  const ot_target_new=na+adjRankPay+45000+certAllow;
-  const fg=findGrade(ot_target_new-na-rp-45000-certAllow,tbl);
-  // 月収/年収/差/設定 = 旧年齢給(1歳昇給) + 暫定変動
-  // 37期 年齢給 = emp.base_pay (= 旧マスタで getAge-1 歳の値)
-  // 38期 年齢給 = 旧マスタの getAge 歳の値 (getAge は 38期 age を返す)
-  var newAgePay=lookupOldAgePay(emp.table37,getAge(emp.birth_date));
-  if(newAgePay==null)newAgePay=emp.base_pay;
-  const nt=newAgePay+adjRankPay+45000+certAllow;
+  // 確定旧総額から新体系の年齢給・役職手当を引いた差分で等級を逆算
+  // （設計→②設計・サポート→③サポートの年齢給テーブル差も正確に反映）
+  const fg=findGrade(ot_actual-na-rp-45000-certAllow,tbl);
+  // 新月収 = 新体系の年齢給 + 役職手当 + 等級手当 + LP + 資格手当
+  const nt=na+rp+fg.pay+45000+certAllow;
   const certDeduct=emp.cert_deduct||0;
   const distRate=emp.dist_rate||0.33;
   const monthRatio=emp.month_ratio_38!==undefined?emp.month_ratio_38:(emp.month_ratio||1.0);
