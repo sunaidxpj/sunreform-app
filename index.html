@@ -679,8 +679,12 @@ function calcMig(emp,cR,cG){
   const rank=cR||emp.rank37, grade=cG||emp.grade37;
   const tbl=getNewTbl(emp.table37);
   const certAllow=emp.cert_allow||0;
-  // 37期 actual 月収 (= 比較ベース、旧)
-  const ot_actual=emp.base_pay+emp.rank_pay+45000+certAllow;
+  // 役員会確定月収 = 38期年齢給（旧マスタ、現年齢）＋確定等級手当（旧マスタ）＋LP＋資格手当
+  var confAgePay=lookupOldAgePay(emp.table37,getAge(emp.birth_date));
+  if(confAgePay==null)confAgePay=emp.base_pay;
+  var confRankPay=lookupOldRankPay(emp.table37,rank,grade);
+  if(confRankPay==null)confRankPay=emp.rank_pay;
+  const ot_actual=confAgePay+confRankPay+45000+certAllow;
   // 暫定の旧体系役職等級手当（マスタから補正）
   var adjRankPay=emp.rank_pay;
   var baseMaster=lookupOldRankPay(emp.table37,emp.rank37,emp.grade37);
@@ -693,17 +697,14 @@ function calcMig(emp,cR,cG){
     var partTgt=Math.ceil(ot_actual*12/drP/100000)*100000;
     return{tbl:"パート",rn:emp.rank37,rp:emp.rank_pay,ot:ot_actual,na:0,ng:emp.grade37,ngp:emp.rank_pay,nt:ot_actual,diff:0,nextTarget:partTgt};
   }
-  // 豊田(0126)・武川(0125): GL 昇格固定、分配率41%
+  // 豊田(0126)・武川(0125): GL 昇格固定、分配率41%。確定旧総額から差異最小グレードを逆算
   if(['0125','0126'].indexOf(emp.emp_no)>=0){
     var na_47=getAP(getAge(emp.birth_date),tbl);
-    var newAP_47=lookupOldAgePay(emp.table37,getAge(emp.birth_date));
-    if(newAP_47==null)newAP_47=emp.base_pay;
-    var nt_47=newAP_47+adjRankPay+45000+certAllow;
-    var fg_47=findGrade(nt_47-na_47-70000-45000-certAllow,tbl)||{grade:'G-1号',pay:0};
+    var fg_47=findGrade(ot_actual-na_47-70000-45000-certAllow,tbl)||{grade:'G-1号',pay:0};
     var certDeduct_47=emp.cert_deduct||0;
     var jitanRatio_47=emp.jitan||1;
     var monthRatio_47=emp.month_ratio_38!==undefined?emp.month_ratio_38:(emp.month_ratio||1.0);
-    var nt38_47=nt_47*jitanRatio_47;
+    var nt38_47=(na_47+70000+fg_47.pay+45000+certAllow)*jitanRatio_47;
     var jinji_47=(nt38_47-certDeduct_47)*14*1.2*monthRatio_47;
     return{tbl:tbl,rn:'グループリーダー',rp:70000,ot:ot_actual,na:na_47,ng:fg_47.grade,ngp:fg_47.pay,nt:nt38_47,diff:nt38_47-ot_actual,nextTarget:Math.ceil(jinji_47/0.41/100000)*100000};
   }
@@ -2201,8 +2202,8 @@ function renderMigrate(){
     // 上書き保存値があれば優先
     const nRank=s.nRank||m.rn;
     const nGrade=s.nGrade||m.ng;
-    // 上書き値で新総額・差額・来期利益設定を再計算
-    const adj=adjustedMig(emp,nRank,nGrade,m.tbl);
+    // 上書き値で新総額・差額・来期利益設定を再計算（確定旧総額 m.ot を基準に）
+    const adj=adjustedMig(emp,nRank,nGrade,m.tbl,m.ot);
     const dc=adj.diff===0?"bb":adj.diff>0?"bg":"br";
     const oldRoleStr=emp.rank37||"";
     const roleChanged=oldRoleStr&&RANK_MAP[oldRoleStr]&&RANK_MAP[oldRoleStr]!==nRank;
@@ -2214,7 +2215,7 @@ function renderMigrate(){
     var gradeSel='<select onchange="onMigGradeChange(this,\''+emp.emp_no+'\',\''+emp.name+'\')" style="font-size:11px;padding:2px;width:100%;font-weight:700;color:#1565C0" class="mig-grade-sel">'+gradeOpts+'</select>';
     // 上書きフラグ表示
     var overrideBadge=(s.nRank&&s.nRank!==m.rn)||(s.nGrade&&s.nGrade!==m.ng)?'<span class="badge bb" style="font-size:9px;margin-left:3px" title="手動上書き">編</span>':'';
-    return "<tr data-empno=\""+emp.emp_no+"\" data-name=\""+emp.name.replace(/"/g,'&quot;')+"\" data-tbl=\""+m.tbl+"\">"
+    return "<tr data-empno=\""+emp.emp_no+"\" data-name=\""+emp.name.replace(/"/g,'&quot;')+"\" data-tbl=\""+m.tbl+"\" data-ot=\""+m.ot+"\">"
       +"<td style=\"font-weight:700\">"+emp.name+overrideBadge+"</td>"
       +"<td style=\"font-size:11px\">"+emp.store+"</td>"
       +"<td style=\"font-size:11px\">"+emp.rank37+" "+emp.grade37+"</td>"
@@ -2234,7 +2235,7 @@ function renderMigrate(){
 const NEW_ROLES=["グループリーダー","チームリーダー","サブリーダー","１級メンバー","２級メンバー","３級メンバー"];
 const NEW_GRADE_CODES=(function(){var arr=[];["G","F","E","D","C","B","A","S"].forEach(function(r){for(var n=1;n<=10;n++)arr.push(r+"-"+n+"号");});return arr;})();
 // 上書き値からの再計算 (calcMig の同じロジックを new_rank/new_grade 直接指定で実行)
-function adjustedMig(emp,newRank,newGrade,newTbl){
+function adjustedMig(emp,newRank,newGrade,newTbl,otBase){
   var certAllow=emp.cert_allow||0,certDeduct=emp.cert_deduct||0;
   var distRate=emp.dist_rate||0.33,monthRatio=emp.month_ratio_38!==undefined?emp.month_ratio_38:(emp.month_ratio||1.0),jitanRatio=emp.jitan||1;
   // GL特定分配率: 豊田(0126)・武川(0125)=41%, 北山(0104)・柴田(0127)=45%
@@ -2242,7 +2243,7 @@ function adjustedMig(emp,newRank,newGrade,newTbl){
     if(['0125','0126'].indexOf(emp.emp_no)>=0) distRate=0.41;
     else if(['0104','0127'].indexOf(emp.emp_no)>=0) distRate=0.45;
   }
-  var ot=emp.base_pay+emp.rank_pay+45000+certAllow; // 各種手当込み
+  var ot=otBase!=null?otBase:(emp.base_pay+emp.rank_pay+45000+certAllow); // 確定旧総額 or fallback
   // マネージャー→GL転換時は前年俸/14をotに使用
   if(emp.is_mgr&&ot<=45000){var mgrPs=emp.prev_salary||0;if(mgrPs>0)ot=Math.round(mgrPs/14);}
   if(isPart(emp)){
@@ -2260,10 +2261,10 @@ function adjustedMig(emp,newRank,newGrade,newTbl){
   var nextTarget=Math.ceil(jinji/distRate/100000)*100000;
   return{na:na,rp:rp,ngp:ngp,nt:nt38,diff:nt38-ot,nextTarget:nextTarget};
 }
-function findBestNewGradeForRole(emp,newRank,tbl){
-  // 旧総額を維持できる最適な新等級を返す ("G-1号"等)
+function findBestNewGradeForRole(emp,newRank,tbl,otBase){
+  // 確定旧総額を維持できる差異最小の新等級を返す ("G-1号"等)
   var certAllow=emp.cert_allow||0;
-  var ot=emp.base_pay+emp.rank_pay+45000+certAllow;
+  var ot=otBase!=null?otBase:(emp.base_pay+emp.rank_pay+45000+certAllow);
   var na=getAP(getAge(emp.birth_date),tbl);
   var rp=RANK_PAY[newRank]||0;
   var target=ot-na-rp-45000-certAllow;
@@ -2281,8 +2282,9 @@ function onMigRankChange(sel,empNo,name){
   sel.style.background=changed?'#FFF3E0':'';
   sel.style.color=changed?'#E65100':'';
   sel.style.fontWeight=changed?'700':'';
-  // 新役職に合わせて最適な新等級を自動選択
-  var bestGrade=findBestNewGradeForRole(emp,sel.value,tbl);
+  // 新役職に合わせて確定旧総額に最も近い新等級を自動選択
+  var otBase=parseInt(tr.dataset.ot)||null;
+  var bestGrade=findBestNewGradeForRole(emp,sel.value,tbl,otBase);
   if(bestGrade){
     gradeSel.value=bestGrade;
     svK(empNo,name,'nGrade','new_grade',bestGrade);
@@ -2299,7 +2301,8 @@ function onMigGradeChange(sel,empNo,name){
   updateMigRow(tr,emp,rankSel.value,sel.value,tbl);
 }
 function updateMigRow(tr,emp,newRank,newGrade,tbl){
-  var adj=adjustedMig(emp,newRank,newGrade,tbl);
+  var otBase=parseInt(tr.dataset.ot)||null;
+  var adj=adjustedMig(emp,newRank,newGrade,tbl,otBase);
   tr.querySelector(".mig-na").textContent=yen(adj.na);
   tr.querySelector(".mig-rp").textContent=yen(adj.rp);
   var pc=tr.querySelector(".mig-preview");
