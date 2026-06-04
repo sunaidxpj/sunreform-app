@@ -693,17 +693,31 @@ function calcMig(emp,cR,cG){
     var partTgt=Math.ceil(ot_actual*12/drP/100000)*100000;
     return{tbl:"パート",rn:emp.rank37,rp:emp.rank_pay,ot:ot_actual,na:0,ng:emp.grade37,ngp:emp.rank_pay,nt:ot_actual,diff:0,nextTarget:partTgt};
   }
+  // 豊田(0126)・武川(0125): GL 昇格固定、分配率41%
+  if(['0125','0126'].indexOf(emp.emp_no)>=0){
+    var na_47=getAP(getAge(emp.birth_date),tbl);
+    var newAP_47=lookupOldAgePay(emp.table37,getAge(emp.birth_date));
+    if(newAP_47==null)newAP_47=emp.base_pay;
+    var nt_47=newAP_47+adjRankPay+45000+certAllow;
+    var fg_47=findGrade(nt_47-na_47-70000-45000-certAllow,tbl)||{grade:'G-1号',pay:0};
+    var certDeduct_47=emp.cert_deduct||0;
+    var jitanRatio_47=emp.jitan||1;
+    var monthRatio_47=emp.month_ratio_38!==undefined?emp.month_ratio_38:(emp.month_ratio||1.0);
+    var nt38_47=nt_47*jitanRatio_47;
+    var jinji_47=(nt38_47-certDeduct_47)*14*1.2*monthRatio_47;
+    return{tbl:tbl,rn:'グループリーダー',rp:70000,ot:ot_actual,na:na_47,ng:fg_47.grade,ngp:fg_47.pay,nt:nt38_47,diff:nt38_47-ot_actual,nextTarget:Math.ceil(jinji_47/0.41/100000)*100000};
+  }
   // 北山(0104)・柴田(0127): マネージャー→グループリーダー特例
   if(['0104','0127'].indexOf(emp.emp_no)>=0){
     var na_gl=getAP(getAge(emp.birth_date),tbl);
     var rp_gl=70000; // グループリーダー役職手当
-    var mgrPrev_cm=(saves[emp.name]||{}).prev_salary||0;
+    var mgrPrev_cm=emp.prev_salary||0;
     var ot_mgr=mgrPrev_cm>0?Math.round(mgrPrev_cm/14):0;
     var fg_gl=findGrade(ot_mgr-na_gl-rp_gl-45000,tbl)||{grade:'G-1号',pay:0};
     var nt_gl=na_gl+rp_gl+fg_gl.pay+45000;
     var nt38_gl=nt_gl*(emp.jitan||1);
     var jinji_gl=(nt38_gl-(emp.cert_deduct||0))*14*1.2*(emp.month_ratio||1);
-    var nextTgt_gl=Math.ceil(jinji_gl/0.51/100000)*100000;
+    var nextTgt_gl=Math.ceil(jinji_gl/0.45/100000)*100000;
     return{tbl:tbl,rn:'グループリーダー',rp:rp_gl,ot:ot_mgr,na:na_gl,ng:fg_gl.grade,ngp:fg_gl.pay,nt:nt38_gl,diff:nt38_gl-ot_mgr,nextTarget:nextTgt_gl};
   }
   // 新v15_2 用の数値 (④新テーブル移行 タブで使用)
@@ -2223,14 +2237,14 @@ const NEW_GRADE_CODES=(function(){var arr=[];["G","F","E","D","C","B","A","S"].f
 function adjustedMig(emp,newRank,newGrade,newTbl){
   var certAllow=emp.cert_allow||0,certDeduct=emp.cert_deduct||0;
   var distRate=emp.dist_rate||0.33,monthRatio=emp.month_ratio_38!==undefined?emp.month_ratio_38:(emp.month_ratio||1.0),jitanRatio=emp.jitan||1;
-  // GL特定分配率: 豊田(0126)・武川(0125)=47%, 北山(0104)・柴田(0127)=51%
+  // GL特定分配率: 豊田(0126)・武川(0125)=41%, 北山(0104)・柴田(0127)=45%
   if(newRank==='グループリーダー'){
-    if(['0125','0126'].indexOf(emp.emp_no)>=0) distRate=0.47;
-    else if(['0104','0127'].indexOf(emp.emp_no)>=0) distRate=0.51;
+    if(['0125','0126'].indexOf(emp.emp_no)>=0) distRate=0.41;
+    else if(['0104','0127'].indexOf(emp.emp_no)>=0) distRate=0.45;
   }
   var ot=emp.base_pay+emp.rank_pay+45000+certAllow; // 各種手当込み
   // マネージャー→GL転換時は前年俸/14をotに使用
-  if(emp.is_mgr&&ot<=45000){var mgrPs=(saves[emp.name]||{}).prev_salary||0;if(mgrPs>0)ot=Math.round(mgrPs/14);}
+  if(emp.is_mgr&&ot<=45000){var mgrPs=emp.prev_salary||0;if(mgrPs>0)ot=Math.round(mgrPs/14);}
   if(isPart(emp)){
     return{na:0,rp:emp.rank_pay,nt:ot,diff:0,nextTarget:Math.ceil(ot*12/distRate/100000)*100000};
   }
