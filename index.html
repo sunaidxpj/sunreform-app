@@ -1050,6 +1050,12 @@ function renderEval(){
 }
 function numParse(s){if(s===null||s===undefined||s==="")return null;var n=Number(String(s).replace(/[,¥\s]/g,""));return isNaN(n)?null:n;}
 function numFmt(n){return n==null?"":n.toLocaleString("ja-JP");}
+function getMgrDistRate(incomeRef){
+  if(!incomeRef)return 0.66;
+  if(incomeRef<=12800000)return 0.66;
+  if(incomeRef>=15300000)return 0.55;
+  return 0.66-(incomeRef-12800000)*0.11/2500000;
+}
 function calcMgrEstimate(emp,prevSal,evalW){
   if(!prevSal)return null;
   var age38=getAge(emp.birth_date);
@@ -1061,6 +1067,21 @@ function calcMgrEstimate(emp,prevSal,evalW){
   return{estimate:estimate,adj1:adj1,adj2:adj2,adj3:adj3};
 }
 function renderMgr(){
+  var EIGYO_HONBU_MGRS=['0007','1003','0101','0301'];
+  var GL_MGRS=['0127','0104'];
+  // 利益設定の計算基準: 37期年俸入力済・対象マネージャーの想定年収平均
+  var qualMgrsForAvg=EMPS.filter(function(e){
+    return e.is_mgr&&!isSelfManager(e)&&(e.prev_salary||0)>0
+      &&EIGYO_HONBU_MGRS.indexOf(e.emp_no)<0&&GL_MGRS.indexOf(e.emp_no)<0;
+  });
+  var sumIncome38=qualMgrsForAvg.reduce(function(sum,e){
+    var ev=weightedEvalAvg(parseEvals(e.evaluations||""));
+    var est=calcMgrEstimate(e,e.prev_salary,ev);
+    return sum+(est?Math.round(est.estimate*14/13):0);
+  },0);
+  var avgIncome38=qualMgrsForAvg.length>0?Math.round(sumIncome38/qualMgrsForAvg.length):0;
+  var distRate38=getMgrDistRate(avgIncome38);
+  var sugTgt38=avgIncome38>0?Math.ceil(avgIncome38*1.2/distRate38/100000)*100000:0;
   var rows="",tot={salary:0,tgt:0,prevSal:0,cnt:0,inp:0};
   EMPS.filter(function(e){return e.is_mgr&&!isSelfManager(e);}).forEach(function(emp){
     var s=saves[emp.name]||{};
@@ -1069,7 +1090,9 @@ function renderMgr(){
     var curSal=numParse(s.fDelta);
     var curTgt=numParse(s.fRank);
     if(curSal==null&&s.fDelta==null)curSal=prevSal;  // default to 前期
-    if(curTgt==null&&s.fRank==null)curTgt=emp.prev_target||0;
+    var isEigyoHonbu=EIGYO_HONBU_MGRS.indexOf(emp.emp_no)>=0;
+    var isGLMgr=GL_MGRS.indexOf(emp.emp_no)>=0;
+    if(curTgt==null&&s.fRank==null)curTgt=isEigyoHonbu?0:(sugTgt38||emp.prev_target||0);
     var salVal=curSal==null?"":curSal;
     var tgtVal=curTgt==null?0:curTgt;
     var st=(s.fDelta&&s.fRank)?3:(s.fDelta||s.fRank)?2:0;
@@ -1143,7 +1166,18 @@ function renderMgr(){
     }else{
       storeTgtHtml='<span style="color:#BDBDBD;font-size:11px">—</span>';
     }
-    rows+="<tr><td style=\"font-weight:700\">"+emp.name+"</td><td style=\"font-size:11px\">"+mgrTargetArea(emp)+"</td><td>"+achStr+"</td><td><input type=\"text\" value=\""+(prevSal?numFmt(prevSal):"")+"\" onchange=\"saveEmpField('"+emp.emp_no+"','"+emp.name+"','prev_salary','prev_salary',(numParse(this.value)||0));this.value=numFmt(numParse(this.value));renderMgr()\" style=\"width:100%;font-size:12px;padding:3px;text-align:right;color:#6A1B9A\" placeholder=\"37期年俸\"></td><td style=\"white-space:normal\">"+storeTgtHtml+"</td><td>"+evalSum+"</td><td style=\"white-space:normal\">"+estHtml+"</td><td><input type=\"text\" value=\""+(salVal===""?"":numFmt(salVal))+"\" onchange=\"svK('"+emp.emp_no+"','"+emp.name+"','fDelta','final_delta',(numParse(this.value)||0).toString());this.value=numFmt(numParse(this.value));if(typeof renderMgr==='function')renderMgr()\" style=\"width:100%;font-size:12px;padding:3px;text-align:right\" placeholder=\"例 12,000,000\"></td><td style=\"text-align:right\">"+diffHtml+"</td><td style=\"text-align:right\">"+pctHtml+"</td><td><input type=\"text\" value=\""+numFmt(tgtVal)+"\" onchange=\"svK('"+emp.emp_no+"','"+emp.name+"','fRank','final_rank',(numParse(this.value)||0).toString());this.value=numFmt(numParse(this.value))\" style=\"width:100%;font-size:12px;padding:3px;text-align:right\" placeholder=\"例 12,800,000\"></td><td><input type=\"text\" value=\""+(s.fMemo||"").replace(/\"/g,'&quot;')+"\" onchange=\"svK('"+emp.emp_no+"','"+emp.name+"','fMemo','final_memo',this.value)\" style=\"font-size:11px;padding:3px;width:100%\" placeholder=\"役員メモ\"></td><td><input type=\"text\" value=\""+(emp.memo||"").replace(/\"/g,'&quot;')+"\" onchange=\"svMemo('"+emp.emp_no+"','"+emp.name+"',this.value)\" style=\"font-size:11px;padding:3px;width:100%;color:#6A1B9A\" placeholder=\"備考\"></td><td>"+stHtml+"</td></tr>"+evalDetailRow;
+    var tgtNoteHtml='';
+    if(isEigyoHonbu){
+      tgtNoteHtml='<div style="font-size:9px;color:#9E9E9E;margin-top:2px">営業本部（設定なし）</div>';
+    }else if(isGLMgr){
+      tgtNoteHtml='<div style="font-size:9px;color:#9E9E9E;margin-top:2px">GL昇格（対象外）</div>';
+    }else if(sugTgt38>0){
+      tgtNoteHtml='<div style="font-size:9px;color:#546E7A;margin-top:2px">目安 '+yen(sugTgt38)
+        +'<br>平均年収'+yen(avgIncome38)+'×1.2÷'+Math.round(distRate38*100)+'%</div>';
+    }else{
+      tgtNoteHtml='<div style="font-size:9px;color:#BDBDBD;margin-top:2px">37期年俸を入力後に算出</div>';
+    }
+    rows+="<tr><td style=\"font-weight:700\">"+emp.name+"</td><td style=\"font-size:11px\">"+mgrTargetArea(emp)+"</td><td>"+achStr+"</td><td><input type=\"text\" value=\""+(prevSal?numFmt(prevSal):"")+"\" onchange=\"saveEmpField('"+emp.emp_no+"','"+emp.name+"','prev_salary','prev_salary',(numParse(this.value)||0));this.value=numFmt(numParse(this.value));renderMgr()\" style=\"width:100%;font-size:12px;padding:3px;text-align:right;color:#6A1B9A\" placeholder=\"37期年俸\"></td><td style=\"white-space:normal\">"+storeTgtHtml+"</td><td>"+evalSum+"</td><td style=\"white-space:normal\">"+estHtml+"</td><td><input type=\"text\" value=\""+(salVal===""?"":numFmt(salVal))+"\" onchange=\"svK('"+emp.emp_no+"','"+emp.name+"','fDelta','final_delta',(numParse(this.value)||0).toString());this.value=numFmt(numParse(this.value));if(typeof renderMgr==='function')renderMgr()\" style=\"width:100%;font-size:12px;padding:3px;text-align:right\" placeholder=\"例 12,000,000\"></td><td style=\"text-align:right\">"+diffHtml+"</td><td style=\"text-align:right\">"+pctHtml+"</td><td style=\"white-space:normal\"><input type=\"text\" value=\""+numFmt(tgtVal)+"\" onchange=\"svK('"+emp.emp_no+"','"+emp.name+"','fRank','final_rank',(numParse(this.value)||0).toString());this.value=numFmt(numParse(this.value))\" style=\"width:100%;font-size:12px;padding:3px;text-align:right\" placeholder=\"例 12,800,000\">"+tgtNoteHtml+"</td><td><input type=\"text\" value=\""+(s.fMemo||"").replace(/\"/g,'&quot;')+"\" onchange=\"svK('"+emp.emp_no+"','"+emp.name+"','fMemo','final_memo',this.value)\" style=\"font-size:11px;padding:3px;width:100%\" placeholder=\"役員メモ\"></td><td><input type=\"text\" value=\""+(emp.memo||"").replace(/\"/g,'&quot;')+"\" onchange=\"svMemo('"+emp.emp_no+"','"+emp.name+"',this.value)\" style=\"font-size:11px;padding:3px;width:100%;color:#6A1B9A\" placeholder=\"備考\"></td><td>"+stHtml+"</td></tr>"+evalDetailRow;
     if(curSal)tot.salary+=curSal;
     if(curTgt)tot.tgt+=curTgt;
     if(prevSal>0)tot.prevSal+=prevSal;
