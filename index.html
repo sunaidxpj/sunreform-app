@@ -1502,7 +1502,8 @@ function getMgrStoreSummary(emp){
     else{var f=ALL_STORES.find(function(s){return s.indexOf(p)===0||p.indexOf(s)===0;});if(f)matched.push(f);}
   });
   if(matched.length===0)return null;
-  var rel=EMPS.filter(function(e){return !e.is_mgr&&matched.indexOf(e.store)>=0;});
+  // result>0 の社員のみ集計（result=0の中途社員を設定分母から除外して達成率を正しく算出）
+  var rel=EMPS.filter(function(e){return !e.is_mgr&&matched.indexOf(e.store)>=0&&(e.result||0)>0;});
   var tot=rel.reduce(function(a,e){return{target:a.target+(e.target||0),result:a.result+(e.result||0)};},{target:0,result:0});
   return tot;
 }
