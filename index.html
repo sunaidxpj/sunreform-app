@@ -1055,7 +1055,7 @@ function calcMgrEstimate(emp,prevSal,evalW){
   var age38=getAge(emp.birth_date);
   var p38=lookupOldAgePay("②営業",age38),p37=lookupOldAgePay("②営業",age38-1);
   var adj1=(p38!=null&&p37!=null)?(p38-p37)*13:0;
-  var adj2=Math.round(prevSal*(emp.achieve||0)/100);
+  var adj2=Math.round(prevSal*((emp.achieve||0)-1)*0.1);
   var adj3=evalW!=null?Math.round(prevSal*(evalW-3)*0.005):0;
   var estimate=prevSal+adj1+adj2+adj3;
   return{estimate:estimate,adj1:adj1,adj2:adj2,adj3:adj3};
