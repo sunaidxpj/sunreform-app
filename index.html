@@ -2850,7 +2850,7 @@ function exportCSV(){
       "","","","","","","","","","","",sal,"","",s.fMemo||"",
       "","","","","","","",sal,"",sal?(sal*14):"",tgt,emp.memo||""]);
   });
-  const csv="\uFEFF"+rows.map(function(r){return r.map(function(v){return "\""+String(v).replace(/"/g,"\"\"")+"\";}).join(",");}).join("\n");
+  const csv="\uFEFF"+rows.map(function(r){return r.map(function(v){return "\""+String(v).replace(/"/g,"\"\"")+"\"";}).join(",");}).join("\n");
   const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));a.download="38期昇降格査定.csv";a.click();
 }
 
