@@ -2587,7 +2587,7 @@ function renderNewTable(){
   right+=sec('賞与');
   var bonus=[
     ['通常賞与（冬・夏）','会社業績・個人成績により支給'],
-    ['達成賞与','利益額設定保持者のみ｜100%達成以上'],
+    ['達成賞与', sel==='サポート' ? '対象外' : '利益額設定保持者のみ｜100%達成以上'],
     ['決算賞与','当期業績結果により支給']
   ];
   right+='<table style="width:100%;font-size:12px;border-collapse:collapse"><tbody>';
