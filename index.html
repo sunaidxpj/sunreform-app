@@ -2598,17 +2598,24 @@ function renderNewTable(){
   right+='</tbody></table>';
   // 資格手当
   right+=sec('資格手当一覧');
-  right+='<table style="width:100%;font-size:12px;border-collapse:collapse"><thead><tr>';
-  right+='<th style="text-align:left;padding:4px 6px;background:#FAFAFA;width:40px">№</th>';
-  right+='<th style="text-align:left;padding:4px 6px;background:#FAFAFA">資格名</th>';
-  right+='<th style="text-align:right;padding:4px 6px;background:#FAFAFA;width:120px">月額</th>';
-  right+='</tr></thead><tbody>';
-  NEW_QUAL_ALLOWANCES.forEach(function(r){
-    right+='<tr><td style="padding:4px 6px;border-bottom:1px solid #F5F5F5;color:#757575">'+r[0]+'</td>';
-    right+='<td style="padding:4px 6px;border-bottom:1px solid #F5F5F5">'+r[1]+'</td>';
-    right+='<td style="padding:4px 6px;border-bottom:1px solid #F5F5F5;text-align:right;font-weight:700;color:var(--primary);font-family:monospace">'+r[2]+'</td></tr>';
-  });
-  right+='</tbody></table>';
+  function qualTable(rows){
+    var s='<table style="width:100%;font-size:12px;border-collapse:collapse"><thead><tr>';
+    s+='<th style="text-align:left;padding:4px 6px;background:#FAFAFA;width:36px">№</th>';
+    s+='<th style="text-align:left;padding:4px 6px;background:#FAFAFA">資格名</th>';
+    s+='<th style="text-align:right;padding:4px 6px;background:#FAFAFA;width:90px">月額</th>';
+    s+='</tr></thead><tbody>';
+    rows.forEach(function(r){
+      s+='<tr><td style="padding:4px 6px;border-bottom:1px solid #F5F5F5;color:#757575">'+r[0]+'</td>';
+      s+='<td style="padding:4px 6px;border-bottom:1px solid #F5F5F5">'+r[1]+'</td>';
+      s+='<td style="padding:4px 6px;border-bottom:1px solid #F5F5F5;text-align:right;font-weight:700;color:var(--primary);font-family:monospace">'+r[2]+'</td></tr>';
+    });
+    return s+'</tbody></table>';
+  }
+  var half=Math.ceil(NEW_QUAL_ALLOWANCES.length/2);
+  right+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">';
+  right+=qualTable(NEW_QUAL_ALLOWANCES.slice(0,half));
+  right+=qualTable(NEW_QUAL_ALLOWANCES.slice(half));
+  right+='</div>';
   // 積立/企業DC
   right+=sec('積立・企業DC');
   var dcRows=[
