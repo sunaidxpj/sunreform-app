@@ -598,6 +598,7 @@ function getPartTarget(emp,grade){
   var eG=Object.assign({},emp,{grade37:g});
   var h=getPartHourly(eG);
   if(!h||!emp.h_per_day||!emp.d_per_week)return 0;
+  if(emp.dist_rate===0)return 0;
   var monthly=h*emp.h_per_day*emp.d_per_week*4;
   var dr=emp.dist_rate||0.33;
   return Math.ceil(monthly*12/dr/100000)*100000;
