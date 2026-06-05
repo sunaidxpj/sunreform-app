@@ -2681,7 +2681,7 @@ function exportExcelDirect(){
     var rows=[hdrs];
     var emps=EMPS.slice().sort(function(a,b){var sa=a.store||'',sb=b.store||'';return sa<sb?-1:sa>sb?1:0;});
     emps.forEach(function(emp){
-      if(isRetiring(emp))return;
+      if(isRetiring(emp)||isMgr(emp))return;
       var s=saves[emp.name]||{};
       var au=autoCalc(emp);
       var eR=s.fRank||s.mRank||s.hRank||au.rank||emp.rank37;
@@ -2747,6 +2747,12 @@ function exportExcelDirect(){
         (r38total&&r37sal)?r38total-r37sal:''
       ]);
     });
+    rows=rows.map(function(row){return row.map(function(v){
+      if(v===null||v===undefined)return '';
+      if(typeof v==='number')return isFinite(v)?v:'';
+      if(typeof v==='string'||typeof v==='boolean')return v;
+      return String(v);
+    });});
     var ws=XLSX.utils.aoa_to_sheet(rows);
     ws['!cols']=[
       {wch:12},{wch:18},{wch:10},{wch:7},
