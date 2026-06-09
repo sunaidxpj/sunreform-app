@@ -714,8 +714,9 @@ function calcMig(emp,cR,cG){
   if(['0104','0127'].indexOf(emp.emp_no)>=0){
     var na_gl=getAP(getAge(emp.birth_date),tbl);
     var rp_gl=70000; // グループリーダー役職手当
-    var mgrPrev_cm=emp.prev_salary||0;
-    var ot_mgr=mgrPrev_cm>0?Math.round(mgrPrev_cm/14):0;
+    var s_gl=saves[emp.name]||{};var mgrFd_gl=numParse(s_gl.fDelta)||0;
+    var mgrBase_gl=mgrFd_gl>0?mgrFd_gl:(emp.prev_salary||0);
+    var ot_mgr=mgrBase_gl>0?Math.round(mgrBase_gl/13):0; // 想定年収=年俸×14/13÷14=年俸÷13
     var fg_gl=findGrade(ot_mgr-na_gl-rp_gl-45000,tbl)||{grade:'G-1号',pay:0};
     var nt_gl=na_gl+rp_gl+fg_gl.pay+45000;
     var nt38_gl=nt_gl*(emp.jitan||1);
@@ -2268,7 +2269,7 @@ function adjustedMig(emp,newRank,newGrade,newTbl,otBase){
   }
   var ot=otBase!=null?otBase:(emp.base_pay+emp.rank_pay+45000+certAllow); // 確定旧総額 or fallback
   // マネージャー→GL転換時は前年俸/14をotに使用
-  if(emp.is_mgr&&ot<=45000){var mgrPs=emp.prev_salary||0;if(mgrPs>0)ot=Math.round(mgrPs/14);}
+  if(emp.is_mgr&&ot<=45000){var s_agl=saves[emp.name]||{};var mgrFd=numParse(s_agl.fDelta)||0;var mgrPs=mgrFd>0?mgrFd:(emp.prev_salary||0);if(mgrPs>0)ot=Math.round(mgrPs/13);}
   if(isPart(emp)){
     return{na:0,rp:emp.rank_pay,nt:ot,diff:0,nextTarget:Math.ceil(ot*12/distRate/100000)*100000};
   }
