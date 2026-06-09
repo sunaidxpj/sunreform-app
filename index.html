@@ -1106,11 +1106,13 @@ function renderMgr(){
   var EIGYO_HONBU_MGRS=['0007','1003','0101','0301'];
   var GL_MGRS=['0127','0104'];
   var DIST55_MGRS=['0009','0010','0012','0013']; // 岩本・小森・小西・栗田: 分配率55%固定
+  var SHOKUTAKU_MGRS=['0009']; // 岩本仁水: 38期から嘱託（自身年俸ベース、平均除外）
   // 38期利益設定の基準年収: 38期年俸(入力)済みマネージャーの想定年収(×14/13)平均
   var qualMgrsForAvg=EMPS.filter(function(e){
     var s2=saves[e.name]||{};var sal=numParse(s2.fDelta)||0;
     return e.is_mgr&&!isSelfManager(e)&&sal>0
-      &&EIGYO_HONBU_MGRS.indexOf(e.emp_no)<0&&GL_MGRS.indexOf(e.emp_no)<0;
+      &&EIGYO_HONBU_MGRS.indexOf(e.emp_no)<0&&GL_MGRS.indexOf(e.emp_no)<0
+      &&SHOKUTAKU_MGRS.indexOf(e.emp_no)<0;
   });
   var sumIncome38=qualMgrsForAvg.reduce(function(sum,e){
     var s2=saves[e.name]||{};var sal=numParse(s2.fDelta)||0;
@@ -1133,8 +1135,13 @@ function renderMgr(){
     var evalW=weightedEvalAvg(evalArr);
     // 38期利益設定: 平均年収(avgIncome38) × 1.2 ÷ 個人分配率（個人は38期年俸入力から算出）
     var sugTgt=0,ownDistRate=0.66,ownIncome=0;
+    var isShokutaku=SHOKUTAKU_MGRS.indexOf(emp.emp_no)>=0;
     if(!isEigyoHonbu&&!isGLMgr){
-      if(DIST55_MGRS.indexOf(emp.emp_no)>=0){
+      if(isShokutaku&&sal38!=null&&sal38>0){
+        // 嘱託: 自身の年俸(sal38)をそのまま年収として計算（×14/13しない）
+        ownDistRate=0.55;
+        sugTgt=Math.ceil(sal38*1.2/0.55/100000)*100000;
+      }else if(DIST55_MGRS.indexOf(emp.emp_no)>=0){
         ownDistRate=0.55;
         if(avgIncome38>0)sugTgt=Math.ceil(avgIncome38*1.2/0.55/100000)*100000;
       }else if(sal38>0){
