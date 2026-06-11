@@ -714,11 +714,13 @@ function calcMig(emp,cR,cG){
   if(['0104','0127'].indexOf(emp.emp_no)>=0){
     var na_gl=getAP(getAge(emp.birth_date),tbl);
     var rp_gl=70000; // グループリーダー役職手当
+    var certAllow_gl=emp.cert_allow||0;
+    var familyAllow_gl=emp.emp_no==='0127'?15000:0; // 柴田: 家族手当
     var s_gl=saves[emp.name]||{};var mgrFd_gl=numParse(s_gl.fDelta)||0;
     var mgrBase_gl=mgrFd_gl>0?mgrFd_gl:(emp.prev_salary||0);
-    var ot_mgr=mgrBase_gl>0?Math.round(mgrBase_gl/13):0; // 想定年収=年俸×14/13÷14=年俸÷13
-    var fg_gl=findGrade(ot_mgr-na_gl-rp_gl-45000,tbl)||{grade:'G-1号',pay:0};
-    var nt_gl=na_gl+rp_gl+fg_gl.pay+45000;
+    var ot_mgr=mgrBase_gl>0?Math.round(mgrBase_gl/13):0;
+    var fg_gl=findGrade(ot_mgr-na_gl-rp_gl-45000-certAllow_gl,tbl)||{grade:'G-1号',pay:0};
+    var nt_gl=na_gl+rp_gl+fg_gl.pay+45000+certAllow_gl+familyAllow_gl;
     var nt38_gl=nt_gl*(emp.jitan||1);
     var jinji_gl=(nt38_gl-(emp.cert_deduct||0))*14*1.2*(emp.month_ratio||1);
     var nextTgt_gl=Math.ceil(jinji_gl/0.45/100000)*100000;
@@ -2292,7 +2294,8 @@ function adjustedMig(emp,newRank,newGrade,newTbl,otBase){
   var gp=newTbl==="①営業"?GP1:newTbl==="②設計"?GP2:GP3;
   var gradeKey=newGrade.replace("号","");
   var ngp=gp[gradeKey]||0;
-  var nt=na+rp+ngp+45000+certAllow; // 各種手当込み
+  var familyAllow_adj=emp.emp_no==='0127'?15000:0; // 柴田: 家族手当
+  var nt=na+rp+ngp+45000+certAllow+familyAllow_adj; // 各種手当込み
   var nt38=nt*jitanRatio;
   var jinji=(nt38-certDeduct)*14*1.2*monthRatio;
   var nextTarget=Math.ceil(jinji/distRate/100000)*100000;
