@@ -2269,7 +2269,7 @@ function renderMigrate(){
 }
 // 新役職・新等級の選択肢
 const NEW_ROLES=["グループリーダー","チームリーダー","サブリーダー","１級スタッフ","２級スタッフ","３級スタッフ"];
-const NEW_GRADE_CODES=(function(){var arr=[];["G","F","E","D","C","B","A","S"].forEach(function(r){for(var n=1;n<=10;n++)arr.push(r+"-"+n+"号");});return arr;})();
+const NEW_GRADE_CODES=(function(){var arr=[];["S","A","B","C","D","E","F","G"].forEach(function(r){for(var n=1;n<=10;n++)arr.push(r+"-"+n+"号");});return arr;})();
 // 上書き値からの再計算 (calcMig の同じロジックを new_rank/new_grade 直接指定で実行)
 function adjustedMig(emp,newRank,newGrade,newTbl,otBase){
   var certAllow=emp.cert_allow||0,certDeduct=emp.cert_deduct||0;
