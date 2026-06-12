@@ -1788,14 +1788,14 @@ function renderFinal(){
       var hR=s.hRank||ca.rank,hG=s.hGrade||ca.grade;var mh=calcMig(emp,hR,hG);
       var mR=s.mRank||hR,mG=s.mGrade||hG;var mm=calcMig(emp,mR,mG);
       var fR=s.fRank||mR,fG=s.fGrade||mG;var mf=calcMig(emp,fR,fG);
-      var cd=emp.cert_deduct||0,mr=emp.month_ratio||1.0;
+      var mr=emp.month_ratio||1.0;
       b.old_m+=(ma?ma.ot:0);
       b.auto_n+=(ma?ma.nt:0);
       b.hope_n+=(mh?mh.nt:0);
       b.meet_n+=(mm?mm.nt:0);
       b.final_n+=(mf?mf.nt:0);
       b.tgt+=mf?(mf.nextTarget||0):0;
-      if(mf){if(isPart(emp))b.jinji+=mf.nt*12*mr;else b.jinji+=(mf.nt-cd)*14*1.2*mr;}
+      if(mf){if(isPart(emp))b.jinji+=mf.nt*12*mr;else b.jinji+=mf.nt*14*1.2*mr;}
       if(emp.achieve!=null){b.ach_sum+=emp.achieve;b.ach_cnt++;}
       if(s.fDelta)b.inp3++;
     });
