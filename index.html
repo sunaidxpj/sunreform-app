@@ -710,7 +710,7 @@ function calcMig(emp,cR,cG){
     var nt38_47=(na_47+70000+fg_47.pay+45000+certAllow+personalAllow_47)*jitanRatio_47;
     var jinji_47=(nt38_47-certDeduct_47)*14*1.2*monthRatio_47;
     var otDisp_47=Math.round((ot_actual+personalAllow_47)*jitanRatio_47);
-    return{tbl:tbl,rn:'グループリーダー',rp:70000,ot:otDisp_47,na:na_47,ng:fg_47.grade,ngp:fg_47.pay,nt:nt38_47,diff:nt38_47-otDisp_47,nextTarget:Math.ceil(jinji_47/0.41/100000)*100000};
+    return{tbl:tbl,rn:'グループリーダー',rp:70000,ot:otDisp_47,otFull:ot_actual,na:na_47,ng:fg_47.grade,ngp:fg_47.pay,nt:nt38_47,diff:nt38_47-otDisp_47,nextTarget:Math.ceil(jinji_47/0.41/100000)*100000};
   }
   // 北山(0104)・柴田(0127): マネージャー→グループリーダー特例
   if(['0104','0127'].indexOf(emp.emp_no)>=0){
@@ -726,7 +726,8 @@ function calcMig(emp,cR,cG){
     var nt38_gl=nt_gl*(emp.jitan||1);
     var jinji_gl=(nt38_gl-(emp.cert_deduct||0))*14*1.2*(emp.month_ratio||1);
     var nextTgt_gl=Math.ceil(jinji_gl/0.45/100000)*100000;
-    return{tbl:tbl,rn:'グループリーダー',rp:rp_gl,ot:ot_mgr,na:na_gl,ng:fg_gl.grade,ngp:fg_gl.pay,nt:nt38_gl,diff:nt38_gl-ot_mgr,nextTarget:nextTgt_gl};
+    var otFull_gl=ot_mgr>0?ot_mgr-familyAllow_gl:0;
+    return{tbl:tbl,rn:'グループリーダー',rp:rp_gl,ot:ot_mgr,otFull:otFull_gl,na:na_gl,ng:fg_gl.grade,ngp:fg_gl.pay,nt:nt38_gl,diff:nt38_gl-ot_mgr,nextTarget:nextTgt_gl};
   }
   // 新v15_2 用の数値 (④新テーブル移行 タブで使用)
   const na=getAP(getAge(emp.birth_date),tbl);
@@ -2254,7 +2255,7 @@ function renderMigrate(){
     const nRank=RANK_MAP[s.nRank||m.rn]||(s.nRank||m.rn);
     const nGrade=s.nGrade||m.ng;
     // 上書き値で新総額・差額・来期利益設定を再計算（確定旧総額 m.ot を基準に）
-    const adj=adjustedMig(emp,nRank,nGrade,m.tbl,m.ot);
+    const adj=adjustedMig(emp,nRank,nGrade,m.tbl,m.otFull!==undefined?m.otFull:m.ot);
     const dc=adj.diff===0?"bb":adj.diff>0?"bg":"br";
     const oldRoleStr=emp.rank37||"";
     const roleChanged=oldRoleStr&&RANK_MAP[oldRoleStr]&&RANK_MAP[oldRoleStr]!==nRank;
