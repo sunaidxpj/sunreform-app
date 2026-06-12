@@ -709,7 +709,8 @@ function calcMig(emp,cR,cG){
     var personalAllow_47=(emp.family_allow||0)+(emp.area_allow||0)+(emp.housing_allow||0);
     var nt38_47=(na_47+70000+fg_47.pay+45000+certAllow+personalAllow_47)*jitanRatio_47;
     var jinji_47=(nt38_47-certDeduct_47)*14*1.2*monthRatio_47;
-    return{tbl:tbl,rn:'グループリーダー',rp:70000,ot:ot_actual,na:na_47,ng:fg_47.grade,ngp:fg_47.pay,nt:nt38_47,diff:nt38_47-ot_actual,nextTarget:Math.ceil(jinji_47/0.41/100000)*100000};
+    var otDisp_47=Math.round((ot_actual+personalAllow_47)*jitanRatio_47);
+    return{tbl:tbl,rn:'グループリーダー',rp:70000,ot:otDisp_47,na:na_47,ng:fg_47.grade,ngp:fg_47.pay,nt:nt38_47,diff:nt38_47-otDisp_47,nextTarget:Math.ceil(jinji_47/0.41/100000)*100000};
   }
   // 北山(0104)・柴田(0127): マネージャー→グループリーダー特例
   if(['0104','0127'].indexOf(emp.emp_no)>=0){
@@ -743,7 +744,7 @@ function calcMig(emp,cR,cG){
   const nt38=nt*jitanRatio;
   const jinji=(nt38-certDeduct)*14*1.2*monthRatio;
   const nextTarget=Math.ceil(jinji/distRate/100000)*100000;
-  const otDisplay=Math.round(ot_actual*jitanRatio);
+  const otDisplay=Math.round((ot_actual+personalAllow)*jitanRatio);
   return{tbl:tbl,rn:rn,rp:rp,ot:otDisplay,otFull:ot_actual,na:na,ng:fg.grade,ngp:fg.pay,nt:nt38,diff:nt38-otDisplay,nextTarget:nextTarget};
 }
 
@@ -892,7 +893,8 @@ function renderStore(){
     var hR=s.hRank||ca.rank, hG=s.hGrade||ca.grade;
     var mh=calcMig(emp,hR,hG);
     var cert=emp.cert_allow||0;
-    b.old_m+=emp.base_pay+emp.rank_pay+45000+cert;
+    var personalAllow=(emp.family_allow||0)+(emp.area_allow||0)+(emp.housing_allow||0);
+    b.old_m+=emp.base_pay+emp.rank_pay+45000+cert+personalAllow;
     b.auto_n+=(ma?ma.nt:0);
     b.hope_n+=(mh?mh.nt:0);
     if(emp.achieve!=null){b.ach_sum+=emp.achieve;b.ach_cnt++;}
@@ -1667,8 +1669,9 @@ function buildSalaryPreview(emp,r,g){
     var agePay37=emp.age_pay||0;
     var agePay38=lookupOldAgePay(emp.table37,getAge(emp.birth_date))||agePay37;
     var otherAllow=emp.other_allow||0,certAllow=emp.cert_allow||0;
-    var monthly=agePay38+(rp||rp37)+certAllow+otherAllow;
-    var monthly37=agePay37+rp37+certAllow+otherAllow;
+    var personalAllow=(emp.family_allow||0)+(emp.area_allow||0)+(emp.housing_allow||0);
+    var monthly=agePay38+(rp||rp37)+certAllow+otherAllow+personalAllow;
+    var monthly37=agePay37+rp37+certAllow+otherAllow+personalAllow;
     var mDiff=monthly-monthly37;
     var dc=mDiff===0?"#1565C0":mDiff>0?"#2E7D32":"#C62828";
     var sign=mDiff>=0?"+":"";
@@ -2308,7 +2311,7 @@ function adjustedMig(emp,newRank,newGrade,newTbl,otBase){
   var nt38=nt*jitanRatio;
   var jinji=(nt38-certDeduct)*14*1.2*monthRatio;
   var nextTarget=Math.ceil(jinji/distRate/100000)*100000;
-  return{na:na,rp:rp,ngp:ngp,nt:nt38,diff:nt38-ot,nextTarget:nextTarget};
+  return{na:na,rp:rp,ngp:ngp,nt:nt38,diff:nt38-(ot+familyAllow_adj),nextTarget:nextTarget};
 }
 function findBestNewGradeForRole(emp,newRank,tbl,otBase){
   // 確定旧総額を維持できる差異最小の新等級を返す ("G-1号"等)
