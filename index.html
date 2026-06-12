@@ -699,25 +699,6 @@ function calcMig(emp,cR,cG){
     var partTgt=drP>0?Math.ceil(ot_actual*12/drP/100000)*100000:0;
     return{tbl:"パート",rn:emp.rank37,rp:emp.rank_pay,ot:ot_actual,na:0,ng:emp.grade37,ngp:emp.rank_pay,nt:ot_actual,diff:0,nextTarget:partTgt};
   }
-  // HD社員 (base_pay=0, other_allow有): LPの代わりにother_allowを使用
-  if(emp.base_pay===0&&emp.other_allow!==undefined){
-    var otherAllow_c=emp.other_allow||0;
-    var ot_hd=confAgePay+confRankPay+otherAllow_c+certAllow;
-    var personalAllow_hd=(emp.family_allow||0)+(emp.area_allow||0)+(emp.housing_allow||0);
-    var na_hd=getAP(getAge(emp.birth_date),tbl);
-    var rn_hd=RANK_MAP[rank]||"２級スタッフ";
-    var rp_hd=RANK_PAY[rn_hd]||10000;
-    var fg_hd=findGrade(ot_hd-na_hd-rp_hd-otherAllow_c-certAllow,tbl);
-    var nt_hd=na_hd+rp_hd+fg_hd.pay+otherAllow_c+certAllow+personalAllow_hd;
-    var jitan_hd=emp.jitan||1;
-    var monthRatio_hd=emp.month_ratio_38!==undefined?emp.month_ratio_38:(emp.month_ratio||1.0);
-    var distRate_hd=emp.dist_rate||0;
-    var nt38_hd=nt_hd*jitan_hd;
-    var jinji_hd=(nt38_hd-(emp.cert_deduct||0))*14*1.2*monthRatio_hd;
-    var nextTarget_hd=distRate_hd>0?Math.ceil(jinji_hd/distRate_hd/100000)*100000:0;
-    var otDisplay_hd=Math.round((ot_hd+personalAllow_hd)*jitan_hd);
-    return{tbl:tbl,rn:rn_hd,rp:rp_hd,ot:otDisplay_hd,otFull:ot_hd,na:na_hd,ng:fg_hd.grade,ngp:fg_hd.pay,nt:nt38_hd,diff:nt38_hd-otDisplay_hd,nextTarget:nextTarget_hd};
-  }
   // 豊田(0126)・武川(0125): GL 昇格固定、分配率41%。確定旧総額から差異最小グレードを逆算
   if(['0125','0126'].indexOf(emp.emp_no)>=0){
     var na_47=getAP(getAge(emp.birth_date),tbl);
@@ -2327,9 +2308,7 @@ function adjustedMig(emp,newRank,newGrade,newTbl,otBase){
   var gradeKey=newGrade.replace("号","");
   var ngp=gp[gradeKey]||0;
   var familyAllow_adj=(emp.family_allow||0)+(emp.area_allow||0)+(emp.housing_allow||0);
-  // HD社員 (base_pay=0, other_allow有) はLPの代わりにother_allowを使用
-  var lpOrOther=(emp.base_pay===0&&emp.other_allow!==undefined)?(emp.other_allow||0):45000;
-  var nt=na+rp+ngp+lpOrOther+certAllow+familyAllow_adj;
+  var nt=na+rp+ngp+45000+certAllow+familyAllow_adj;
   var nt38=nt*jitanRatio;
   var jinji=(nt38-certDeduct)*14*1.2*monthRatio;
   var nextTarget=distRate>0?Math.ceil(jinji/distRate/100000)*100000:0;
