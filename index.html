@@ -703,10 +703,11 @@ function calcMig(emp,cR,cG){
   if(['0125','0126'].indexOf(emp.emp_no)>=0){
     var na_47=getAP(getAge(emp.birth_date),tbl);
     var fg_47=findGrade(ot_actual-na_47-70000-45000-certAllow,tbl)||{grade:'G-1号',pay:0};
+    var certDeduct_47=emp.cert_deduct||0;
     var jitanRatio_47=emp.jitan||1;
     var monthRatio_47=emp.month_ratio_38!==undefined?emp.month_ratio_38:(emp.month_ratio||1.0);
     var nt38_47=(na_47+70000+fg_47.pay+45000+certAllow)*jitanRatio_47;
-    var jinji_47=nt38_47*14*1.2*monthRatio_47;
+    var jinji_47=(nt38_47-certDeduct_47)*14*1.2*monthRatio_47;
     return{tbl:tbl,rn:'グループリーダー',rp:70000,ot:ot_actual,na:na_47,ng:fg_47.grade,ngp:fg_47.pay,nt:nt38_47,diff:nt38_47-ot_actual,nextTarget:Math.ceil(jinji_47/0.41/100000)*100000};
   }
   // 北山(0104)・柴田(0127): マネージャー→グループリーダー特例
@@ -721,7 +722,7 @@ function calcMig(emp,cR,cG){
     var fg_gl=findGrade(ot_mgr-na_gl-rp_gl-45000-certAllow_gl,tbl)||{grade:'G-1号',pay:0};
     var nt_gl=na_gl+rp_gl+fg_gl.pay+45000+certAllow_gl+familyAllow_gl;
     var nt38_gl=nt_gl*(emp.jitan||1);
-    var jinji_gl=nt38_gl*14*1.2*(emp.month_ratio||1);
+    var jinji_gl=(nt38_gl-(emp.cert_deduct||0))*14*1.2*(emp.month_ratio||1);
     var nextTgt_gl=Math.ceil(jinji_gl/0.45/100000)*100000;
     return{tbl:tbl,rn:'グループリーダー',rp:rp_gl,ot:ot_mgr,na:na_gl,ng:fg_gl.grade,ngp:fg_gl.pay,nt:nt38_gl,diff:nt38_gl-ot_mgr,nextTarget:nextTgt_gl};
   }
@@ -734,11 +735,12 @@ function calcMig(emp,cR,cG){
   const fg=findGrade(ot_actual-na-rp-45000-certAllow,tbl);
   // 新月収 = 新体系の年齢給 + 役職手当 + 等級手当 + LP + 資格手当
   const nt=na+rp+fg.pay+45000+certAllow;
+  const certDeduct=emp.cert_deduct||0;
   const distRate=emp.dist_rate||0.33;
   const monthRatio=emp.month_ratio_38!==undefined?emp.month_ratio_38:(emp.month_ratio||1.0);
   const jitanRatio=emp.jitan||1;
   const nt38=nt*jitanRatio;
-  const jinji=nt38*14*1.2*monthRatio;
+  const jinji=(nt38-certDeduct)*14*1.2*monthRatio;
   const nextTarget=Math.ceil(jinji/distRate/100000)*100000;
   const otDisplay=Math.round(ot_actual*jitanRatio);
   return{tbl:tbl,rn:rn,rp:rp,ot:otDisplay,otFull:ot_actual,na:na,ng:fg.grade,ngp:fg.pay,nt:nt38,diff:nt38-otDisplay,nextTarget:nextTarget};
