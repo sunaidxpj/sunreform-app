@@ -735,12 +735,11 @@ function calcMig(emp,cR,cG){
   const fg=findGrade(ot_actual-na-rp-45000-certAllow,tbl);
   // 新月収 = 新体系の年齢給 + 役職手当 + 等級手当 + LP + 資格手当
   const nt=na+rp+fg.pay+45000+certAllow;
-  const certDeduct=emp.cert_deduct||0;
   const distRate=emp.dist_rate||0.33;
   const monthRatio=emp.month_ratio_38!==undefined?emp.month_ratio_38:(emp.month_ratio||1.0);
   const jitanRatio=emp.jitan||1;
   const nt38=nt*jitanRatio;
-  const jinji=(nt38-certDeduct)*14*1.2*monthRatio;
+  const jinji=nt38*14*1.2*monthRatio;
   const nextTarget=Math.ceil(jinji/distRate/100000)*100000;
   const otDisplay=Math.round(ot_actual*jitanRatio);
   return{tbl:tbl,rn:rn,rp:rp,ot:otDisplay,otFull:ot_actual,na:na,ng:fg.grade,ngp:fg.pay,nt:nt38,diff:nt38-otDisplay,nextTarget:nextTarget};
@@ -2623,9 +2622,8 @@ function calcImpactFor(filterFn){
     nm+=m.nt;
     var mr=emp.month_ratio||1.0;
     if(mr<1.0&&emp.target){tgt+=Math.round(emp.target*mr);}else{tgt+=m.nextTarget||0;}
-    var cd=emp.cert_deduct||0;
     if(isPart(emp)){totalJinji+=(m.nt)*12*mr;}
-    else{totalJinji+=(m.nt-cd)*14*1.2*mr;}
+    else{totalJinji+=m.nt*14*1.2*mr;}
     cnt++;if(s.fRank&&s.fGrade)conf++;
   });
   var distRate=tgt>0?(totalJinji/tgt):0;
