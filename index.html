@@ -1347,8 +1347,7 @@ function renderInput(){
       var ma=calcMig(emp,ca.rank,ca.grade);
       var hR=s.hRank||ca.rank,hG=s.hGrade||ca.grade;
       var mh=calcMig(emp,hR,hG);
-      var cert=emp.cert_allow||0;
-      b.old_m+=emp.base_pay+emp.rank_pay+45000+cert;
+      b.old_m+=(ma?ma.ot:0);
       b.auto_n+=(ma?ma.nt:0);
       b.hope_n+=(mh?mh.nt:0);
       if(emp.achieve!=null){b.ach_sum+=emp.achieve;b.ach_cnt++;}
@@ -1366,7 +1365,7 @@ function renderInput(){
         "<div>自動提案 <b>"+(b.auto_d>=0?"+":"")+b.auto_d+"</b> <span style=\"font-size:11px;color:#757575\">("+b.cnt+"名)</span></div>"+
         "<div>店長希望 <b>"+(b.hope_d>=0?"+":"")+b.hope_d+"</b> <span style=\"font-size:11px;color:#757575\">("+b.hope_n_cnt+"名)</span></div>"+
         "<div>乖離 <b style=\"color:"+gapCol+"\">"+(gap>=0?"+":"")+gap+"</b></div>"+
-        "<div>"+CFG.prevLabel+"月額 "+yen(b.old_m)+"</div>"+
+        "<div>旧体系月額 "+yen(b.old_m)+"</div>"+
         "<div>→自動 <span style=\"color:#1565C0\">"+yen(b.auto_n)+"</span></div>"+
         "<div>→希望 <span style=\"color:#6A1B9A\">"+yen(b.hope_n)+"</span></div>"+
         "<div>差額/月 <b style=\"color:"+diffCol+"\">"+fmtSign(diffM)+"</b></div>"+
@@ -1498,8 +1497,7 @@ function renderMeet(){
       var mh=calcMig(emp,hR,hG);
       var mR=s.mRank||hR,mG=s.mGrade||hG;
       var mm=calcMig(emp,mR,mG);
-      var cert=emp.cert_allow||0;
-      b.old_m+=emp.base_pay+emp.rank_pay+45000+cert;
+      b.old_m+=(ma?ma.ot:0);
       b.auto_n+=(ma?ma.nt:0);
       b.hope_n+=(mh?mh.nt:0);
       b.meet_n+=(mm?mm.nt:0);
@@ -1529,7 +1527,7 @@ function renderMeet(){
         "<div>暫定vs希望 <b style=\"color:"+gMHCol+"\">"+(gapMH>=0?"+":"")+gapMH+"</b></div>"+
       "</div>"+
       "<div style=\"display:flex;gap:18px;flex-wrap:wrap;margin-top:4px;padding-top:4px;border-top:1px dashed #FFCC80\">"+
-        "<div>"+CFG.prevLabel+"月額 "+yen(b.old_m)+"</div>"+
+        "<div>旧体系月額 "+yen(b.old_m)+"</div>"+
         "<div>自動 <span style=\"color:#1565C0\">"+yen(b.auto_n)+"</span></div>"+
         "<div>希望 <span style=\"color:#6A1B9A\">"+yen(b.hope_n)+"</span></div>"+
         "<div>暫定 <b style=\"color:#E65100\">"+yen(b.meet_n)+"</b></div>"+
@@ -1791,14 +1789,14 @@ function renderFinal(){
       var hR=s.hRank||ca.rank,hG=s.hGrade||ca.grade;var mh=calcMig(emp,hR,hG);
       var mR=s.mRank||hR,mG=s.mGrade||hG;var mm=calcMig(emp,mR,mG);
       var fR=s.fRank||mR,fG=s.fGrade||mG;var mf=calcMig(emp,fR,fG);
-      var cert=emp.cert_allow||0,cd=emp.cert_deduct||0,mr=emp.month_ratio||1.0;
-      b.old_m+=emp.base_pay+emp.rank_pay+45000+cert;
+      var cd=emp.cert_deduct||0,mr=emp.month_ratio||1.0;
+      b.old_m+=(ma?ma.ot:0);
       b.auto_n+=(ma?ma.nt:0);
       b.hope_n+=(mh?mh.nt:0);
       b.meet_n+=(mm?mm.nt:0);
-      b.final_n+=(mf?mf.nt:0)+cert;
+      b.final_n+=(mf?mf.nt:0);
       b.tgt+=mf?(mf.nextTarget||0):0;
-      if(mf){if(isPart(emp))b.jinji+=mf.nt*12*mr;else b.jinji+=(mf.nt+cert-cd)*14*1.2*mr;}
+      if(mf){if(isPart(emp))b.jinji+=mf.nt*12*mr;else b.jinji+=(mf.nt-cd)*14*1.2*mr;}
       if(emp.achieve!=null){b.ach_sum+=emp.achieve;b.ach_cnt++;}
       if(s.fDelta)b.inp3++;
     });
@@ -1824,7 +1822,7 @@ function renderFinal(){
         "<div>確定vs②暫定 <b style=\"color:"+fMCol+"\">"+(gapFM>=0?"+":"")+gapFM+"</b></div>"+
       "</div>"+
       "<div style=\"display:flex;gap:18px;flex-wrap:wrap;margin-top:4px;padding-top:4px;border-top:1px dashed #FFCDD2\">"+
-        "<div>"+CFG.prevLabel+"月額 "+yen(b.old_m)+"</div>"+
+        "<div>旧体系月額 "+yen(b.old_m)+"</div>"+
         "<div>自動 <span style=\"color:#1565C0\">"+yen(b.auto_n)+"</span></div>"+
         "<div>希望 <span style=\"color:#6A1B9A\">"+yen(b.hope_n)+"</span></div>"+
         "<div>暫定 <span style=\"color:#E65100\">"+yen(b.meet_n)+"</span></div>"+
@@ -1948,6 +1946,12 @@ function reRenderCurrent(){
   var active=tabs.find(function(t){var el=document.getElementById("v-"+t);return el&&el.style.display!=="none";});
   if(active==="meet")renderMeet();
   else if(active==="final")renderFinal();
+  else if(active==="migrate")renderMigrate();
+  else if(active==="mgr")renderMgr();
+  else if(active==="eval")renderEval();
+  else if(active==="audit")renderAudit();
+  else if(active==="perm")renderPerm();
+  else if(active==="newtable")renderNewTable();
   else if(active==="admin"){renderAdmMetrics();renderAdm();}
   else if(active==="store")renderStore();
   else renderInput();
